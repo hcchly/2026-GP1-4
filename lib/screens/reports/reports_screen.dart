@@ -1,9 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../models/citizen_report.dart';
 import '../../services/report_service.dart';
@@ -36,7 +33,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   /// Created once, so changing the filter does not restart the listener.
   late final Stream<List<CitizenReport>>? _liveReports =
-      widget.reports ?? _watchOwnReports();
+      widget.reports ?? ReportService.watchOwnReports();
 
   // Demo reports are for UI preview only.
   // They are not real citizen reports.
@@ -262,21 +259,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
         ],
       ],
     );
-  }
-
-  // Read only the signed-in citizen's reports, live.
-  Stream<List<CitizenReport>>? _watchOwnReports() {
-    if (Firebase.apps.isEmpty) return null;
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return null;
-
-    return FirebaseFirestore.instance
-        .collection(ReportService.collection)
-        .where('userId', isEqualTo: userId)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map(CitizenReport.fromFirestore).toList(),
-        );
   }
 
   Widget buildLiveReports() {

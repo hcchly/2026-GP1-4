@@ -1,11 +1,11 @@
 import 'dart:async';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/report_map_service.dart';
 import '../../theme/khota_colors.dart';
 import '../../utils/report_labels.dart';
 import '../../widgets/gradient_app_bar.dart';
@@ -23,7 +23,8 @@ class ReportsMapScreen extends StatefulWidget {
 class _ReportsMapScreenState extends State<ReportsMapScreen> {
   final _controller = MapController();
   Timer? _viewportTimer;
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _markers;
+  late final _mapService = ReportMapService();
+  Stream<List<MapReport>>? _markers;
 
   @override
   void dispose() {
@@ -33,16 +34,13 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
   }
 
   void _loadMarkers(LatLngBounds bounds) {
-    final query = FirebaseFirestore.instance
-        .collection('mapReports')
-        .where('latitude', isGreaterThanOrEqualTo: bounds.south)
-        .where('latitude', isLessThanOrEqualTo: bounds.north)
-        .where('longitude', isGreaterThanOrEqualTo: bounds.west)
-        .where('longitude', isLessThanOrEqualTo: bounds.east)
-        .orderBy('latitude')
-        .orderBy('longitude');
-
-    setState(() => _markers = query.snapshots());
+    final markers = _mapService.watchInBounds(
+      south: bounds.south,
+      north: bounds.north,
+      west: bounds.west,
+      east: bounds.east,
+    );
+    setState(() => _markers = markers);
   }
 
   void _queueLoad(MapCamera camera, bool _) {
@@ -52,10 +50,10 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
     });
   }
 
-  void _showReport(Map<String, dynamic> data) {
-    final issueClass = issueClassLabel(data['issueClass']);
-    final severity = severityLabel(data['severity']);
-    final status = switch (data['reportStatus']) {
+  void _showReport(MapReport report) {
+    final issueClass = issueClassLabel(report.issueClass);
+    final severity = severityLabel(report.severity);
+    final status = switch (report.reportStatus) {
       'pending' => ReportStatusLabels.pending,
       'in_progress' => ReportStatusLabels.inProgress,
       'resolved' => ReportStatusLabels.resolved,
@@ -88,31 +86,17 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
     );
   }
 
-  Marker? _marker(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final data = doc.data();
-    final latitude = data['latitude'];
-    final longitude = data['longitude'];
-    if (latitude is! num ||
-        longitude is! num ||
-        !latitude.isFinite ||
-        !longitude.isFinite ||
-        latitude < -90 ||
-        latitude > 90 ||
-        longitude < -180 ||
-        longitude > 180) {
-      return null;
-    }
-
+  Marker _marker(MapReport report) {
     return Marker(
-      key: ValueKey(doc.id),
-      point: LatLng(latitude.toDouble(), longitude.toDouble()),
+      key: ValueKey(report.id),
+      point: report.point,
       width: 48,
       height: 48,
       // Coloured by report status; warning icon and red border when severe.
       child: ReportMapMarker(
-        reportStatus: data['reportStatus'],
-        severity: data['severity'],
-        onPressed: () => _showReport(data),
+        reportStatus: report.reportStatus,
+        severity: report.severity,
+        onPressed: () => _showReport(report),
       ),
     );
   }
@@ -121,7 +105,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: const GradientAppBar(title: 'خريطة خُطى'),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<List<MapReport>>(
         stream: _markers,
         builder: (context, snapshot) {
           final loading =
@@ -130,10 +114,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                   snapshot.connectionState == ConnectionState.waiting);
           final markers = loading || snapshot.hasError
               ? const <Marker>[]
-              : (snapshot.data?.docs ?? [])
-                    .map(_marker)
-                    .whereType<Marker>()
-                    .toList();
+              : (snapshot.data ?? []).map(_marker).toList();
 
           return Stack(
             fit: StackFit.expand,
@@ -199,11 +180,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                     ),
                   ),
                 ),
-              const Positioned(
-                bottom: 8,
-                left: 8,
-                child: ReportMapLegend(),
-              ),
+              const Positioned(bottom: 8, left: 8, child: ReportMapLegend()),
               Positioned(
                 bottom: 4,
                 right: 4,

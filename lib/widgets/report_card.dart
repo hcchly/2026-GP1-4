@@ -23,12 +23,14 @@ class StatusChip extends StatelessWidget {
       case 'in_progress':
       case 'inprogress':
       case 'in progress':
+      case ReportStatusLabels.inProgress:
         return StatusChip(
           key: key,
           label: 'قيد التنفيذ',
           tone: StatusTone.progress,
         );
       case 'resolved':
+      case ReportStatusLabels.resolved:
         return StatusChip(
           key: key,
           label: ReportStatusLabels.resolved,
@@ -107,14 +109,13 @@ class AnalysisStatusLine extends StatelessWidget {
     final (IconData icon, String label, Color color) = switch (status
         .trim()
         .toLowerCase()) {
-      'completed' || 'done' => (
+      'completed' || 'done' || 'اكتمل تحليل الصورة' => (
         Icons.check_circle_outline,
         'اكتمل تحليل الصورة',
         colors.primary,
       ),
-      'not_assessable' ||
-      'notassessable' ||
-      'failed' => (Icons.error_outline, 'تعذّر تقييم الصورة', AppColors.error),
+      'not_assessable' || 'notassessable' || 'failed' || 'تعذّر تحليل الصورة' =>
+        (Icons.error_outline, 'تعذّر تقييم الصورة', AppColors.error),
       _ => (
         Icons.hourglass_top_rounded,
         ReportStatusLabels.analyzing,

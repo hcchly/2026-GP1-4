@@ -1,16 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../models/app_user.dart';
+import '../../models/citizen_report.dart';
 import '../../services/profile_service.dart';
 import '../../services/report_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
-import '../../utils/date_format.dart';
-import '../../utils/report_sort.dart';
 import '../../widgets/coming_soon.dart';
 import '../../widgets/gradient_header.dart';
 import '../../widgets/info_card.dart';
@@ -37,68 +33,21 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ProfileService _service =
       widget.service ?? FirestoreProfileService.instance;
   late final Future<AppUser> _profile = _service.getProfile();
-  late final Stream<QuerySnapshot<Map<String, dynamic>>>? _reports =
-      _watchOwnReports();
+  late final Stream<List<CitizenReport>>? _reports =
+      ReportService.watchOwnReports();
 
-  Stream<QuerySnapshot<Map<String, dynamic>>>? _watchOwnReports() {
-    if (Firebase.apps.isEmpty) return null;
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return null;
-
-    return FirebaseFirestore.instance
-        .collection(ReportService.collection)
-        .where('userId', isEqualTo: userId)
-        .snapshots();
-  }
-
-  DateTime? _createdAt(QueryDocumentSnapshot<Map<String, dynamic>> report) {
-    final timestamp = report.data()['createdAt'];
-    return timestamp is Timestamp ? timestamp.toDate() : null;
-  }
-
-  int _newestFirst(
-    QueryDocumentSnapshot<Map<String, dynamic>> first,
-    QueryDocumentSnapshot<Map<String, dynamic>> second,
-  ) => compareNewestFirst(
-    _createdAt(first),
-    first.id,
-    _createdAt(second),
-    second.id,
-  );
-
-  Widget _reportCard(
-    BuildContext context,
-    QueryDocumentSnapshot<Map<String, dynamic>> report,
-  ) {
-    final data = report.data();
-    final description = (data['description'] ?? '').toString().trim();
-    final location = data['location'];
-    final address = data['address'];
-    final createdAt = _createdAt(report);
-    final imageUrl = data['imageUrl'];
-    final rawStatus = (data['reportStatus'] ?? data['status'] ?? '').toString();
-    final reportStatus = switch (rawStatus.trim().toLowerCase()) {
-      'قيد التنفيذ من الجهة المختصة' => 'in_progress',
-      'completed' || 'done' || 'تم الحل' => 'resolved',
-      _ => rawStatus,
-    };
-
+  Widget _reportCard(CitizenReport report) {
     return ReportSummaryCard(
       key: ValueKey(report.id),
-      title: description.isEmpty ? 'بلاغ عن مشكلة في الرصيف' : description,
-      // Saved place name; older reports get it looked up from the point.
-      locationText: address is String ? address.trim() : '',
-      latitude: location is GeoPoint ? location.latitude : null,
-      longitude: location is GeoPoint ? location.longitude : null,
-      dateText: createdAt == null
-          ? 'التاريخ غير متاح'
-          : formatArabicDate(createdAt),
-      reportStatus: reportStatus,
-      analysisStatus:
-          (data['analysisStatus'] ?? data['imageAnalysisStatus'] ?? '')
-              .toString(),
+      title: report.description,
+      locationText: report.address ?? '',
+      latitude: report.latitude,
+      longitude: report.longitude,
+      dateText: report.dateText,
+      reportStatus: report.reportStatus,
+      analysisStatus: report.analysisStatus,
       reportNumber: ReportService.displayNumber(report.id),
-      imageUrl: imageUrl is String && imageUrl.isNotEmpty ? imageUrl : null,
+      imageUrl: report.imageUrl,
       onTap: () => widget.onOpenTab(1),
     );
   }
@@ -282,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            child: StreamBuilder<List<CitizenReport>>(
               stream: _reports,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
@@ -301,9 +250,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                final reports = snapshot.data?.docs.toList() ?? [];
+                final reports = [...?snapshot.data]
+                  ..sort(CitizenReport.newestFirst);
                 if (reports.isEmpty) return _emptyReports(context);
-                reports.sort(_newestFirst);
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -311,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     for (final report in reports.take(3))
                       Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: _reportCard(context, report),
+                        child: _reportCard(report),
                       ),
                   ],
                 );

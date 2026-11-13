@@ -3,10 +3,13 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+
+import '../models/citizen_report.dart';
 import '../models/report_draft.dart';
 import '../models/report_location.dart';
 
-/// Saves submitted reports in the `reports` collection.
+/// Reads and saves the signed-in citizen’s reports.
 ///
 /// A new report always starts with reportStatus `pending` and analysisStatus
 /// `processing`. issueClass and severity stay null until the computer vision
@@ -23,6 +26,21 @@ class ReportService {
   static const statusPending = 'pending';
   static const analysisProcessing = 'processing';
 
+  /// Returns a live stream for the current citizen, or null without a session.
+  static Stream<List<CitizenReport>>? watchOwnReports() {
+    if (Firebase.apps.isEmpty) return null;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return null;
+
+    return FirebaseFirestore.instance
+        .collection(collection)
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs.map(CitizenReport.fromFirestore).toList(),
+        );
+  }
+
   /// Creates a document ID on the device, before anything is sent. Retrying
   /// with the same ID can never create a second copy of the same report.
   static String generateId() {
@@ -33,9 +51,9 @@ class ReportService {
   }
 
   /// Short reference, e.g. "AB12CD34".
-  static String shortCode(String reportId) =>
-      reportId.substring(0, reportId.length < 8 ? reportId.length : 8)
-          .toUpperCase();
+  static String shortCode(String reportId) => reportId
+      .substring(0, reportId.length < 8 ? reportId.length : 8)
+      .toUpperCase();
 
   /// Report number shown to the citizen everywhere, e.g. "KHT-AB12CD34".
   /// Use this in the report list and details too, so the numbers match.
