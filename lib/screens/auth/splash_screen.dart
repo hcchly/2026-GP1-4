@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,13 +8,13 @@ import '../../widgets/brand_surface.dart';
 import '../shell/main_shell.dart';
 import 'login_screen.dart';
 
-/// Khota animated splash.
+/// Khota animated splash: "a step forward".
 ///
-/// Motion:
-///  1. Sidewalk pavers assemble the chevron mark row by row.
-///  2. The completed mark briefly settles into place.
-///  3. The Arabic word "خطى" is revealed smoothly (never split).
-///  4. The tagline fades in.
+/// Motion (about 2 seconds):
+///  1. The lower, broken chevron (the damaged sidewalk) rises in.
+///  2. The upper, intact chevron steps up out of it into place.
+///  3. The Arabic word "خطى" is written in from right to left.
+///  4. The dot of the خ pops in, then the tagline fades up.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key, this.auth});
 
@@ -31,12 +29,19 @@ class _SplashScreenState extends State<SplashScreen>
   late final AuthService _auth = widget.auth ?? FirebaseAuthService.instance;
 
   /// Whole intro timeline in seconds.
-  static const double _total = 2.6;
+  static const double _total = 2.1;
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 2600),
+    duration: const Duration(milliseconds: 2100),
   );
+
+  static const _layers = [
+    'assets/images/splash_mark_bottom.png',
+    'assets/images/splash_mark_top.png',
+    'assets/images/splash_word.png',
+    'assets/images/splash_word_dot.png',
+  ];
 
   bool _started = false;
   bool _navigated = false;
@@ -48,6 +53,9 @@ class _SplashScreenState extends State<SplashScreen>
     // header shows the image straight away, not the fallback colour.
     precacheImage(AssetImage(context.khota.headerImage), context);
     if (_started) return;
+    for (final layer in _layers) {
+      precacheImage(AssetImage(layer), context);
+    }
     _started = true;
 
     if (MediaQuery.disableAnimationsOf(context)) {
@@ -55,7 +63,7 @@ class _SplashScreenState extends State<SplashScreen>
       Future<void>.delayed(const Duration(milliseconds: 1800), _goNext);
     } else {
       _controller.forward().whenComplete(() {
-        Future<void>.delayed(const Duration(milliseconds: 1300), _goNext);
+        Future<void>.delayed(const Duration(milliseconds: 900), _goNext);
       });
     }
   }
@@ -90,6 +98,12 @@ class _SplashScreenState extends State<SplashScreen>
     return ((t - from) / (to - from)).clamp(0.0, 1.0).toDouble();
   }
 
+  // Easing curves matched to the approved web preview.
+  static const _easeOut = Cubic(0.2, 0.8, 0.2, 1);
+  static const _stepCurve = Cubic(0.3, 1.35, 0.4, 1); // small overshoot
+  static const _wipeCurve = Cubic(0.65, 0, 0.35, 1);
+  static const _popCurve = Cubic(0.3, 1.6, 0.5, 1);
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -107,19 +121,17 @@ class _SplashScreenState extends State<SplashScreen>
           child: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                // Compact logo: about half the screen width, at most 220.
-                final width = math.min(constraints.maxWidth * 0.52, 220.0);
+                // The lockup (word + mark) takes about 62% of the width.
+                final width = (constraints.maxWidth * 0.62)
+                    .clamp(0.0, 300.0)
+                    .toDouble();
                 return Stack(
                   fit: StackFit.expand,
                   children: [
                     Center(
                       child: AnimatedBuilder(
                         animation: _controller,
-                        builder: (context, _) => _KhotaLogo(
-                          width: width,
-                          time: _controller.value * _total,
-                          wordProgress: _seg(1.73, 2.16),
-                        ),
+                        builder: (context, _) => _logo(width),
                       ),
                     ),
                     Positioned(
@@ -128,8 +140,16 @@ class _SplashScreenState extends State<SplashScreen>
                       bottom: 42,
                       child: AnimatedBuilder(
                         animation: _controller,
-                        builder: (context, child) =>
-                            Opacity(opacity: _seg(2.02, 2.48), child: child),
+                        builder: (context, child) {
+                          final p = Curves.easeOut.transform(_seg(1.6, 2.1));
+                          return Opacity(
+                            opacity: p,
+                            child: Transform.translate(
+                              offset: Offset(0, 8 * (1 - p)),
+                              child: child,
+                            ),
+                          );
+                        },
                         child: Column(
                           children: [
                             Container(
@@ -164,51 +184,54 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}
 
-/// The assembled mark appears above the original Arabic wordmark.
-class _KhotaLogo extends StatelessWidget {
-  const _KhotaLogo({
-    required this.width,
-    required this.time,
-    required this.wordProgress,
-  });
+  /// The four logo layers share one canvas (822 × 260), so they line up
+  /// exactly when stacked.
+  Widget _logo(double width) {
+    final bottom = _easeOut.transform(_seg(0.10, 0.65));
+    final stepT = _seg(0.35, 1.05);
+    final step = _stepCurve.transform(stepT);
+    final wipe = _wipeCurve.transform(_seg(0.95, 1.55));
+    final popT = _seg(1.45, 1.80);
+    final pop = _popCurve.transform(popT);
 
-  final double width;
-  final double time;
-  final double wordProgress;
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = Curves.easeOutCubic.transform(wordProgress);
     return Semantics(
       label: 'شعار خُطى',
       image: true,
       child: SizedBox(
         width: width,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        height: width * 260 / 822,
+        child: Stack(
+          fit: StackFit.expand,
           children: [
-            SizedBox(
-              width: width * 0.66,
-              height: width * 0.66 * 248 / 338,
-              child: _PaverMark(time: time),
-            ),
-            const SizedBox(height: 18),
+            // 1. Damaged lower chevron rises in.
             Opacity(
-              opacity: progress,
-              child: Transform.translate(
-                offset: Offset(0, 12 * (1 - progress)),
-                child: ClipRect(
-                  clipper: _RevealFromRight(progress),
-                  child: Image.asset(
-                    'assets/images/khota_word_mist.png',
-                    width: width * 0.62,
-                    height: width * 0.62 * 215 / 445,
-                    fit: BoxFit.fill,
-                    excludeFromSemantics: true,
-                  ),
-                ),
+              opacity: bottom,
+              child: FractionalTranslation(
+                translation: Offset(0, 0.14 * (1 - bottom)),
+                child: _layer(_layers[0]),
+              ),
+            ),
+            // 2. Intact upper chevron steps up and forward into place.
+            Opacity(
+              opacity: (stepT / 0.4).clamp(0.0, 1.0).toDouble(),
+              child: FractionalTranslation(
+                translation: Offset(-0.035 * (1 - step), 0.26 * (1 - step)),
+                child: _layer(_layers[1]),
+              ),
+            ),
+            // 3. Word written in from right to left.
+            ClipRect(
+              clipper: _RevealFromRight(wipe),
+              child: _layer(_layers[2]),
+            ),
+            // 4. The dot of the خ pops in.
+            Opacity(
+              opacity: popT,
+              child: Transform.scale(
+                scale: 0.2 + 0.8 * pop,
+                alignment: const Alignment(-0.18, -0.70),
+                child: _layer(_layers[3]),
               ),
             ),
           ],
@@ -216,6 +239,13 @@ class _KhotaLogo extends StatelessWidget {
       ),
     );
   }
+
+  Widget _layer(String asset) => Image.asset(
+    asset,
+    fit: BoxFit.fill,
+    filterQuality: FilterQuality.high,
+    excludeFromSemantics: true,
+  );
 }
 
 class _RevealFromRight extends CustomClipper<Rect> {
@@ -232,107 +262,4 @@ class _RevealFromRight extends CustomClipper<Rect> {
 
   @override
   bool shouldReclip(_RevealFromRight old) => old.progress != progress;
-}
-
-/// Four courses of pavers laid from the bottom of the original mark.
-class _PaverMark extends StatelessWidget {
-  const _PaverMark({required this.time});
-
-  final double time;
-
-  static const _columns = 4;
-  static const _rows = 4;
-  static const _tileCount = _columns * _rows;
-  static const _stagger = 0.085;
-  static const _landingDuration = 0.36;
-  static const _finished = (_tileCount - 1) * _stagger + _landingDuration;
-
-  @override
-  Widget build(BuildContext context) {
-    final image = Image.asset(
-      'assets/images/khota_mark_mist.png',
-      fit: BoxFit.fill,
-      filterQuality: FilterQuality.high,
-      excludeFromSemantics: true,
-    );
-
-    if (time >= _finished) {
-      final settle = ((time - _finished) / 0.25).clamp(0.0, 1.0);
-      return Transform.scale(
-        scale: 1 + 0.035 * math.sin(settle * math.pi),
-        child: image,
-      );
-    }
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth / _columns;
-        final height = constraints.maxHeight / _rows;
-
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            for (var i = 0; i < _tileCount; i++)
-              if (time > i * _stagger) _paver(i, width, height, image),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _paver(int index, double width, double height, Widget image) {
-    final row = _rows - 1 - index ~/ _columns;
-    final step = index % _columns;
-    final column = row.isEven ? _columns - 1 - step : step;
-    final progress = ((time - index * _stagger) / _landingDuration)
-        .clamp(0.0, 1.0)
-        .toDouble();
-    final travel = 1 - Curves.easeOutCubic.transform(progress);
-    final highlight = math.sin(progress * math.pi);
-    final area = Rect.fromLTWH(
-      column * width,
-      row * height,
-      width + (column < _columns - 1 ? 0.5 : 0),
-      height + (row < _rows - 1 ? 0.5 : 0),
-    );
-
-    return Positioned.fill(
-      child: Opacity(
-        opacity: math.min(1.0, progress * 3),
-        child: Transform.translate(
-          offset: Offset((column.isEven ? -10 : 10) * travel, -26 * travel),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: ClipRect(clipper: _TileClip(area), child: image),
-              ),
-              Positioned.fromRect(
-                rect: area.deflate(1),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.11 * highlight),
-                    borderRadius: BorderRadius.circular(3),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.425 * highlight),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TileClip extends CustomClipper<Rect> {
-  const _TileClip(this.rect);
-  final Rect rect;
-
-  @override
-  Rect getClip(Size size) => rect;
-
-  @override
-  bool shouldReclip(_TileClip old) => old.rect != rect;
 }

@@ -31,21 +31,50 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   );
   bool _saving = false;
 
+  /// True once the name differs from the saved one (feedback 08: the save
+  /// button stays disabled until something actually changes).
+  bool _changed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.addListener(_onNameChanged);
+  }
+
+  void _onNameChanged() {
+    final changed = _nameController.text.trim() != widget.user.fullName.trim();
+    if (changed != _changed) setState(() => _changed = changed);
+  }
+
   @override
   void dispose() {
+    _nameController.removeListener(_onNameChanged);
     _nameController.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
+    if (!_changed || _saving) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
     try {
       final updated = await widget.service.updateName(_nameController.text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('تم حفظ التغييرات')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                Icons.check_circle_rounded,
+                color: context.khota.onSnackBar,
+              ),
+              const SizedBox(width: 10),
+              const Expanded(child: Text('تم حفظ التغييرات')),
+            ],
+          ),
+        ),
+      );
       Navigator.of(context).pop(updated);
     } catch (_) {
       if (!mounted) return;
@@ -106,7 +135,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 28),
             ElevatedButton(
-              onPressed: _saving ? null : _save,
+              // Disabled until the name changes, and while saving.
+              onPressed: _changed && !_saving ? _save : null,
               child: _saving
                   ? SizedBox(
                       width: 22,
@@ -118,6 +148,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     )
                   : const Text('حفظ التغييرات'),
             ),
+            if (!_changed && !_saving) ...[
+              const SizedBox(height: 10),
+              Text(
+                'عدّل الاسم لتفعيل زر الحفظ.',
+                textAlign: TextAlign.center,
+                style: text.bodySmall?.copyWith(
+                  color: context.khota.muted(0.6),
+                ),
+              ),
+            ],
           ],
         ),
       ),

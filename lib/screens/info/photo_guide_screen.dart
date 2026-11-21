@@ -4,9 +4,10 @@ import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
-import '../../widgets/brand_surface.dart';
 
-class PhotoGuideScreen extends StatelessWidget {
+/// Photo guide as swipeable cards (feedback 14): four short rules, one per
+/// card, each with a correct and a wrong example, instead of a long page.
+class PhotoGuideScreen extends StatefulWidget {
   const PhotoGuideScreen({super.key});
 
   static const _tips = [
@@ -45,118 +46,219 @@ class PhotoGuideScreen extends StatelessWidget {
   ];
 
   @override
+  State<PhotoGuideScreen> createState() => _PhotoGuideScreenState();
+}
+
+class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
+  final _controller = PageController();
+  int _page = 0;
+
+  static int get _count => PhotoGuideScreen._tips.length;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int page) {
+    _controller.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final isLast = _page == _count - 1;
 
     return Scaffold(
       appBar: const GradientAppBar(title: 'دليل التصوير'),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
-        children: [
-          const BrandIntro(
-            eyebrow: 'قبل ما تصوّر',
-            title: 'الصورة الواضحة\nتشرح المشكلة',
-            description:
-                'أظهر الضرر والرصيف المحيط به. '
-                'هنا أمثلة تساعدك تختار الزاوية والمسافة المناسبة.',
-            icon: Icons.camera_alt_outlined,
-          ),
-
-          const SizedBox(height: 20),
-
-          for (var i = 0; i < _tips.length; i++) ...[
-            InfoCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: context.khota.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Text(
-                          '${i + 1}',
-                          style: text.titleSmall?.copyWith(
-                            color: context.khota.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _tips[i].$1,
-                          style: text.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+              child: Text(
+                'اسحب البطاقات لتتعرّف على $_count قواعد لصورة واضحة.',
+                textAlign: TextAlign.center,
+                style: text.bodyMedium?.copyWith(
+                  color: context.khota.muted(0.7),
+                ),
+              ),
+            ),
+            // In RTL the PageView runs right to left, so the next card
+            // comes in from the left, as Arabic readers expect.
+            Expanded(
+              child: PageView.builder(
+                controller: _controller,
+                itemCount: _count,
+                onPageChanged: (page) => setState(() => _page = page),
+                itemBuilder: (context, i) => Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: _TipCard(
+                    number: i + 1,
+                    count: _count,
+                    tip: PhotoGuideScreen._tips[i],
                   ),
-
-                  const SizedBox(height: 6),
-
-                  Text(_tips[i].$2, style: text.bodyMedium),
-
-                  const SizedBox(height: 16),
-
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final good = _ExampleCard(
-                        good: true,
-                        imageName: _tips[i].$3,
-                        subtitle: _tips[i].$5,
-                      );
-
-                      final bad = _ExampleCard(
-                        good: false,
-                        imageName: _tips[i].$4,
-                        subtitle: _tips[i].$6,
-                      );
-
-                      if (constraints.maxWidth < 420) {
-                        return Column(
-                          children: [good, const SizedBox(height: 12), bad],
-                        );
-                      }
-
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: good),
-                          const SizedBox(width: 12),
-                          Expanded(child: bad),
-                        ],
-                      );
-                    },
+                ),
+              ),
+            ),
+            _PageDots(count: _count, current: _page),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Row(
+                children: [
+                  // "السابق": chevron_left mirrors in RTL and points right.
+                  TextButton.icon(
+                    onPressed: _page == 0 ? null : () => _goTo(_page - 1),
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    label: const Text('السابق'),
+                  ),
+                  const SizedBox(width: 12),
+                  // "التالي": chevron_right mirrors in RTL and points left.
+                  // The theme gives this button full width, so it is Expanded.
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isLast
+                          ? () => Navigator.of(context).maybePop()
+                          : () => _goTo(_page + 1),
+                      iconAlignment: IconAlignment.end,
+                      icon: Icon(
+                        isLast
+                            ? Icons.check_rounded
+                            : Icons.chevron_right_rounded,
+                      ),
+                      label: Text(isLast ? 'فهمت' : 'التالي'),
+                    ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 16),
-          ],
-
-          InfoCard(
-            child: Row(
-              children: [
-                Icon(Icons.privacy_tip_outlined, color: context.khota.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'احمِ خصوصية الآخرين: تجنّب تصوير الوجوه ولوحات السيارات.',
-                    style: text.bodyMedium,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.privacy_tip_outlined,
+                    size: 18,
+                    color: context.khota.primary,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'احمِ خصوصية الآخرين: تجنّب تصوير الوجوه ولوحات السيارات.',
+                      style: text.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One rule: number, title, short description and the two examples.
+class _TipCard extends StatelessWidget {
+  const _TipCard({
+    required this.number,
+    required this.count,
+    required this.tip,
+  });
+
+  final int number;
+  final int count;
+  final (String, String, String, String, String, String) tip;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Semantics(
+      label: 'القاعدة $number من $count',
+      child: InfoCard(
+        padding: const EdgeInsets.all(18),
+        // Scrolls inside the card at large font sizes.
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: context.khota.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Text(
+                      '$number',
+                      style: text.titleSmall?.copyWith(
+                        color: context.khota.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      tip.$1,
+                      style: text.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(tip.$2, style: text.bodyMedium),
+              const SizedBox(height: 14),
+              _ExampleCard(good: true, imageName: tip.$3, subtitle: tip.$5),
+              const SizedBox(height: 12),
+              _ExampleCard(good: false, imageName: tip.$4, subtitle: tip.$6),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PageDots extends StatelessWidget {
+  const _PageDots({required this.count, required this.current});
+
+  final int count;
+  final int current;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.khota;
+    return Semantics(
+      label: 'البطاقة ${current + 1} من $count',
+      child: ExcludeSemantics(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var i = 0; i < count; i++)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: i == current ? 22 : 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: i == current ? colors.primary : colors.divider,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

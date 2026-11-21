@@ -181,69 +181,65 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    // Compact header (supervisor feedback 07): the account details take a
+    // single row so the menu gets most of the screen.
     return GradientHeader(
+      bottomRadius: 24,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(20, 14, 20, 26),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 20, 16),
+        child: Row(
           children: [
-            Text(
-              'حسابي',
-              style: text.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
+            Semantics(
+              label: 'الصورة الرمزية',
+              child: Container(
+                width: 52,
+                height: 52,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: context.khota.headerBadge,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    width: 2,
+                  ),
+                ),
+                child: Text(
+                  user.initial,
+                  style: text.titleLarge?.copyWith(
+                    color: context.khota.onHeaderBadge,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Semantics(
-                  label: 'الصورة الرمزية',
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: context.khota.headerBadge,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        width: 2,
-                      ),
-                    ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Semantics(
+                    header: true,
                     child: Text(
-                      user.initial,
-                      style: text.headlineSmall?.copyWith(
-                        color: context.khota.onHeaderBadge,
+                      user.fullName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: text.titleMedium?.copyWith(
+                        color: Colors.white,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        user.fullName,
-                        style: text.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        user.email,
-                        textDirection: TextDirection.ltr,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.bodyMedium?.copyWith(color: AppColors.mist),
-                      ),
-                    ],
+                  const SizedBox(height: 2),
+                  Text(
+                    user.email,
+                    textDirection: TextDirection.ltr,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: text.bodySmall?.copyWith(color: AppColors.mist),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -286,6 +282,7 @@ class _MenuTile extends StatelessWidget {
         child: InkWell(
           borderRadius: radius,
           onTap: onTap,
+          // The whole row is the tap target, not only the icon or arrow.
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             child: Row(
@@ -299,7 +296,15 @@ class _MenuTile extends StatelessWidget {
                         ?.copyWith(color: color, fontWeight: FontWeight.w600),
                   ),
                 ),
-                Icon(Icons.chevron_left_rounded, color: iconColor, size: 22),
+                // chevron_right mirrors in RTL, so it points left (forward
+                // in Arabic). chevron_left would point right.
+                ExcludeSemantics(
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: iconColor,
+                    size: 22,
+                  ),
+                ),
               ],
             ),
           ),

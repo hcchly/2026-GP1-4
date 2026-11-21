@@ -14,12 +14,23 @@ class SettingsScreen extends StatelessWidget {
     final settings = AppSettings.instance;
     final text = Theme.of(context).textTheme;
 
+    // The phone's own accessibility settings, before the in-app ones are
+    // applied (feedback 09: the app follows the device first and the in-app
+    // controls must never fight it).
+    final device = MediaQueryData.fromView(View.of(context));
+    final deviceScale = device.textScaler.scale(1);
+    final deviceBold = device.boldText;
+
     return Scaffold(
       appBar: const GradientAppBar(title: 'الإعدادات'),
       body: ListenableBuilder(
         listenable: settings,
         builder: (context, _) {
           final index = settings.textScaleIndex;
+          // Same rule as main.dart: device size × in-app size, up to 200%.
+          final effective = (deviceScale * settings.textScale)
+              .clamp(0.8, 2.0)
+              .toDouble();
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
             children: [
@@ -96,6 +107,18 @@ class SettingsScreen extends StatelessWidget {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 10),
+                    Text(
+                      deviceScale == 1
+                          ? 'الحجم المعروض: ${(effective * 100).round()}%'
+                          : 'يُضاف هذا إلى حجم خط جهازك '
+                                '(${(deviceScale * 100).round()}%). '
+                                'الحجم المعروض: ${(effective * 100).round()}%',
+                      style: text.bodySmall?.copyWith(
+                        color: context.khota.muted(0.68),
+                        height: 1.5,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -118,11 +141,15 @@ class SettingsScreen extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    subtitle: const Text(
-                      'يساعد على إبراز الكلمات أثناء القراءة.',
+                    // When bold text is on in the phone, it stays on here
+                    // too and cannot be turned off from the app.
+                    subtitle: Text(
+                      deviceBold
+                          ? 'مفعّل من إعدادات جهازك.'
+                          : 'يساعد على إبراز الكلمات أثناء القراءة.',
                     ),
-                    value: settings.boldText,
-                    onChanged: settings.setBoldText,
+                    value: deviceBold || settings.boldText,
+                    onChanged: deviceBold ? null : settings.setBoldText,
                   ),
                 ),
               ),
