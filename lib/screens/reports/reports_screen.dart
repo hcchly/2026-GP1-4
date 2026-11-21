@@ -7,7 +7,6 @@ import '../../services/report_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
 import '../../widgets/info_card.dart';
-import '../../widgets/brand_surface.dart';
 import '../../widgets/place_name.dart';
 import '../../widgets/report_status_widgets.dart';
 import 'report_details_screen.dart';
@@ -32,8 +31,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
   late bool previewMode = widget.initialPreview;
 
   /// Created once, so changing the filter does not restart the listener.
-  late final Stream<List<CitizenReport>>? _liveReports =
+  late Stream<List<CitizenReport>>? _liveReports =
       widget.reports ?? ReportService.watchOwnReports();
+
+  void _retryReports() {
+    setState(
+      () => _liveReports = widget.reports ?? ReportService.watchOwnReports(),
+    );
+  }
 
   // Demo reports are for UI preview only.
   // They are not real citizen reports.
@@ -134,7 +139,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [filters, _reportCards(filtered)],
+      children: [
+        filters,
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(
+            'الأحدث أولًا',
+            style: Theme.of(context).textTheme.labelMedium
+                ?.copyWith(color: context.khota.muted(0.7)),
+          ),
+        ),
+        _reportCards(filtered),
+      ],
     );
   }
 
@@ -151,6 +167,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ? 'لا توجد بلاغات بعد'
                 : 'لا توجد بلاغات بهذه الحالة',
           ),
+
+          const SizedBox(height: 8),
+          Text(
+            reports.isEmpty
+                ? 'اضغط «بلاغ جديد» أسفل الشاشة لإرسال أول بلاغ.'
+                : 'اختَر حالة أخرى أو اعرض كل البلاغات.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: context.khota.muted(0.7)),
+          ),
+          if (reports.isNotEmpty)
+            TextButton(
+              onPressed: () =>
+                  setState(() => selectedFilter = ReportStatusLabels.all),
+              child: const Text('عرض كل البلاغات'),
+            ),
 
           if (reports.isEmpty && !previewMode) ...[
             const SizedBox(height: 12),
@@ -250,6 +282,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     analysisStatus: report.analysisStatus,
                     reportStatus: report.reportStatus,
                   ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'عرض التفاصيل',
+                          style: text.labelLarge?.copyWith(
+                            color: context.khota.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_back_rounded,
+                        size: 18,
+                        color: context.khota.primary,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -286,13 +339,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: Column(
               children: [
                 const Text(
-                  'تعذّر تحميل البلاغات. تحقق من الاتصال وصلاحيات Firestore.',
+                  'تعذّر تحميل البلاغات. تحقق من اتصال الإنترنت ثم حاول مجددًا.',
                   textAlign: TextAlign.center,
                 ),
 
                 const SizedBox(height: 12),
 
-                if (kDebugMode) previewButton(),
+                TextButton.icon(
+                  onPressed: _retryReports,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('إعادة المحاولة'),
+                ),
               ],
             ),
           );
@@ -316,11 +373,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 96),
           children: [
-            const BrandIntro(
-              eyebrow: 'بلاغاتي',
-              title: 'كل خطوة موثّقة',
-              description: 'تابع بلاغاتك، من إرسال الصورة إلى آخر تحديث.',
-              icon: Icons.assignment_outlined,
+            Text(
+              'بلاغاتي',
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 20),
 

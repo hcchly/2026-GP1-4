@@ -13,17 +13,24 @@ import '../../widgets/info_card.dart';
 import '../../widgets/report_card.dart';
 import '../info/about_screen.dart';
 import '../info/photo_guide_screen.dart';
+import '../reports/report_details_screen.dart';
 
 /// Home tab.
 ///
 /// A new report is started only from the "بلاغ جديد" button in the centre of
 /// the navigation bar, so the home screen does not repeat that action.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, required this.onOpenTab, this.service});
+  const HomeScreen({
+    super.key,
+    required this.onOpenTab,
+    this.service,
+    this.reports,
+  });
 
   /// Switches the bottom navigation tab (1 = reports, 2 = map).
   final ValueChanged<int> onOpenTab;
   final ProfileService? service;
+  final Stream<List<CitizenReport>>? reports;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,8 +40,21 @@ class _HomeScreenState extends State<HomeScreen> {
   late final ProfileService _service =
       widget.service ?? FirestoreProfileService.instance;
   late final Future<AppUser> _profile = _service.getProfile();
-  late final Stream<List<CitizenReport>>? _reports =
-      ReportService.watchOwnReports();
+  late Stream<List<CitizenReport>>? _reports =
+      widget.reports ?? ReportService.watchOwnReports();
+  final _servicesController = ScrollController();
+
+  @override
+  void dispose() {
+    _servicesController.dispose();
+    super.dispose();
+  }
+
+  void _retryReports() {
+    setState(
+      () => _reports = widget.reports ?? ReportService.watchOwnReports(),
+    );
+  }
 
   Widget _reportCard(CitizenReport report) {
     return ReportSummaryCard(
@@ -48,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
       analysisStatus: report.analysisStatus,
       reportNumber: ReportService.displayNumber(report.id),
       imageUrl: report.imageUrl,
-      onTap: () => widget.onOpenTab(1),
+      onTap: () => _open(ReportDetailsScreen(report: report)),
     );
   }
 
@@ -193,9 +213,10 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             height: 118,
             child: ListView(
+              key: const ValueKey('home-services'),
+              controller: _servicesController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              physics: const BouncingScrollPhysics(),
               children: [
                 _ServiceTile(
                   icon: Icons.assignment_outlined,
@@ -220,7 +241,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 8),
+          Center(child: _ServiceScrollRail(controller: _servicesController)),
+          const SizedBox(height: 24),
 
           _SectionTitle(
             'آخر البلاغات',
@@ -235,10 +258,18 @@ class _HomeScreenState extends State<HomeScreen> {
               stream: _reports,
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return const InfoCard(
-                    child: Text(
-                      'تعذّر تحميل آخر البلاغات.',
-                      textAlign: TextAlign.center,
+                  return InfoCard(
+                    child: Column(
+                      children: [
+                        const Text(
+                          'تعذّر تحميل آخر البلاغات. تحقّق من الاتصال.',
+                        ),
+                        TextButton.icon(
+                          onPressed: _retryReports,
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('إعادة المحاولة'),
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -319,7 +350,7 @@ class _GuideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final colors = context.khota;
-    final radius = BorderRadius.circular(24);
+    final radius = BorderRadius.circular(18);
     return Material(
       color: colors.isDark
           ? colors.surface
@@ -335,19 +366,19 @@ class _GuideCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: radius,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.mint,
+                  color: AppColors.mint.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
                   Icons.photo_camera_rounded,
-                  size: 26,
-                  color: colors.isDark ? colors.onPrimary : Colors.white,
+                  size: 22,
+                  color: colors.primary,
                 ),
               ),
               const SizedBox(width: 14),
@@ -356,15 +387,15 @@ class _GuideCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'صورة أوضح. بلاغ أدق.',
+                      'دليل تصوير المشكلة',
                       style: text.titleMedium?.copyWith(
                         color: colors.text,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      'افتح دليل التصوير قبل إرسال بلاغك.',
+                      'إرشادات تساعدك على تصوير المشكلة بوضوح.',
                       style: text.bodySmall?.copyWith(
                         color: colors.muted(0.7),
                         height: 1.5,
@@ -440,6 +471,167 @@ class _ServiceTile extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Compact, draggable scroll track with physical left/right arrow controls.
+class _ServiceScrollRail extends StatefulWidget {
+  const _ServiceScrollRail({required this.controller});
+  final ScrollController controller;
+
+  @override
+  State<_ServiceScrollRail> createState() => _ServiceScrollRailState();
+}
+
+class _ServiceScrollRailState extends State<_ServiceScrollRail> {
+  ScrollPosition? get _position =>
+      widget.controller.hasClients &&
+          widget.controller.position.hasContentDimensions
+      ? widget.controller.position
+      : null;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_refresh);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    MediaQuery.sizeOf(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  void _move(bool left) {
+    final position = _position;
+    if (position == null) return;
+    final reverse = position.axisDirection == AxisDirection.left;
+    final direction = left == reverse ? 1 : -1;
+    widget.controller.animateTo(
+      (position.pixels + direction * position.viewportDimension * 0.7).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.khota;
+    final position = _position;
+    final extent = position?.maxScrollExtent ?? 0;
+    final offset = position?.pixels.clamp(0.0, extent) ?? 0.0;
+    final reverse = position?.axisDirection == AxisDirection.left;
+    final progress = extent > 0 ? offset / extent : 0.0;
+    final fraction = position == null
+        ? 0.65
+        : (position.viewportDimension / (position.viewportDimension + extent))
+              .clamp(0.2, 1.0);
+    final canLeft =
+        extent > 0 && (reverse ? offset < extent - 0.5 : offset > 0.5);
+    final canRight =
+        extent > 0 && (reverse ? offset > 0.5 : offset < extent - 0.5);
+
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'تحريك الخدمات لليسار',
+            onPressed: canLeft ? () => _move(true) : null,
+            iconSize: 18,
+            color: colors.primary,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Semantics(
+            label: 'شريط تمرير الخدمات',
+            child: SizedBox(
+              width: 112,
+              height: 48,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final travel = constraints.maxWidth * (1 - fraction);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: extent > 0
+                        ? (details) {
+                            final ratio =
+                                (details.localPosition.dx /
+                                        constraints.maxWidth)
+                                    .clamp(0.0, 1.0);
+                            widget.controller.animateTo(
+                              (reverse ? 1 - ratio : ratio) * extent,
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOutCubic,
+                            );
+                          }
+                        : null,
+                    onHorizontalDragUpdate: extent > 0 && travel > 0
+                        ? (details) {
+                            widget.controller.jumpTo(
+                              (widget.controller.offset +
+                                      details.delta.dx /
+                                          travel *
+                                          extent *
+                                          (reverse ? -1 : 1))
+                                  .clamp(0.0, extent),
+                            );
+                          }
+                        : null,
+                    child: Center(
+                      child: Container(
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: colors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Align(
+                          alignment: Alignment(
+                            (reverse ? 1 - progress : progress) * 2 - 1,
+                            0,
+                          ),
+                          child: FractionallySizedBox(
+                            widthFactor: fraction,
+                            heightFactor: 1,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.75),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'تحريك الخدمات لليمين',
+            onPressed: canRight ? () => _move(false) : null,
+            iconSize: 18,
+            color: colors.primary,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
       ),
     );
   }

@@ -32,11 +32,13 @@ class ReportMapMarker extends StatelessWidget {
     required this.reportStatus,
     required this.severity,
     required this.onPressed,
+    this.selected = false,
   });
 
   final Object? reportStatus;
   final Object? severity;
   final VoidCallback onPressed;
+  final bool selected;
 
   static const normalIcon = Icons.location_on_rounded;
   static const severeIcon = Icons.warning_rounded;
@@ -46,22 +48,29 @@ class ReportMapMarker extends StatelessWidget {
     final colors = context.khota;
     final severe = isSevere(severity);
 
-    return IconButton(
-      tooltip: 'عرض ملخص البلاغ',
-      onPressed: onPressed,
-      style: IconButton.styleFrom(
-        backgroundColor: ReportMarkerColors.forStatus(reportStatus),
-        foregroundColor: Colors.white,
-        side: BorderSide(
-          color: severe
-              ? AppColors.error
-              : colors.isDark
-              ? colors.background
-              : Colors.white,
-          width: severe ? 3 : 2,
+    return Semantics(
+      selected: selected,
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 160),
+        scale: selected ? 1.18 : 1,
+        child: IconButton(
+          tooltip: 'عرض ملخص البلاغ',
+          onPressed: onPressed,
+          style: IconButton.styleFrom(
+            backgroundColor: ReportMarkerColors.forStatus(reportStatus),
+            foregroundColor: Colors.white,
+            side: BorderSide(
+              color: severe
+                  ? AppColors.error
+                  : colors.isDark
+                  ? colors.background
+                  : Colors.white,
+              width: severe ? 3 : 2,
+            ),
+          ),
+          icon: Icon(severe ? severeIcon : normalIcon, size: 25),
         ),
       ),
-      icon: Icon(severe ? severeIcon : normalIcon, size: 25),
     );
   }
 }
@@ -81,7 +90,7 @@ class ReportMapLegend extends StatelessWidget {
         children: [
           SizedBox(width: 16, child: Center(child: mark)),
           const SizedBox(width: 6),
-          Text(label, style: text),
+          Flexible(child: Text(label, style: text)),
         ],
       ),
     );
