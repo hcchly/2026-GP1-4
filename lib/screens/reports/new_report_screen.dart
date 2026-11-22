@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-
+import 'dart:ui' as ui;
 import '../../models/report_draft.dart';
 import '../../models/report_location.dart';
 import '../../models/submitted_report.dart';
@@ -71,12 +71,15 @@ class _NewReportScreenState extends State<NewReportScreen>
   int _step = 1;
 
  
-  // Step 1: photo.
-  Uint8List? _image;
-  String? _imageUrl;
-  bool _picking = false;
-  String? _photoError;
-  List<String> _photoWarnings = const [];
+ // Step 1: photo.
+Uint8List? _image;
+String? _imageUrl;
+bool _picking = false;
+String? _photoError;
+List<String> _photoWarnings = const [];
+bool _photoChecking = false;
+bool? _sidewalkVisible;
+int _photoCheckRequest = 0;
 
 
   // Step 2: location.
@@ -153,39 +156,47 @@ class _NewReportScreenState extends State<NewReportScreen>
     }
   }
 
+  
   Future<void> _shoot() async {
     final live = _live;
     if (live == null || !live.isReady || _picking) return;
+
     setState(() {
       _picking = true;
       _photoError = null;
     });
+
     try {
       final image = await live.takePicture();
       if (!mounted) return;
+
       if (image != null) {
-        setState(() {
-          _image = image;
-          _imageUrl = null;
-        });
+        _setSelectedPhoto(image);
       }
     } catch (_) {
       if (!mounted) return;
-      setState(() => _photoError = 'تعذّر التقاط الصورة. حاول مرة أخرى.');
+      setState(() {
+        _photoError = 'تعذّر التقاط الصورة. حاول مرة أخرى.';
+      });
     } finally {
       if (mounted) setState(() => _picking = false);
       _syncCamera();
     }
   }
 
-  /// Retake: back to the live camera, or the system camera as a fallback.
   void _retake() {
     if (_liveUsable) {
+      _photoCheckRequest++;
+
       setState(() {
         _image = null;
         _imageUrl = null;
         _photoError = null;
+        _photoWarnings = const [];
+        _photoChecking = false;
+        _sidewalkVisible = null;
       });
+
       _syncCamera();
     } else {
       _pickPhoto(gallery: false);
@@ -198,10 +209,7 @@ class _NewReportScreenState extends State<NewReportScreen>
     try {
       final image = await _camera.recover();
       if (!mounted || image == null) return;
-      setState(() {
-        _image = image;
-        _imageUrl = null;
-      });
+      _setSelectedPhoto(image);
     } catch (_) {
       // Nothing to recover.
     }
@@ -212,23 +220,24 @@ class _NewReportScreenState extends State<NewReportScreen>
       _picking = true;
       _photoError = null;
     });
+
     try {
       final image = gallery
           ? await _camera.pickFromGallery()
           : await _camera.capture();
+
       if (!mounted) return;
+
       if (image != null) {
-        setState(() {
-          _image = image;
-          _imageUrl = null; // a new photo must be uploaded again
-        });
+        _setSelectedPhoto(image);
       }
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
         _photoError = gallery
             ? 'تعذّر فتح الصور. تحقّق من إذن الوصول للصور وحاول مرة أخرى.'
-            : 'تعذّر فتح الكاميرا. تحقّق من إذن الكاميرا وحاول مرة أخرى.';
+            : 'تعذّر فتح الكاميرا. فعّل إذن الكاميرا من إعدادات الجهاز أو اختر صورة من المعرض.';
       });
     } finally {
       if (mounted) setState(() => _picking = false);
@@ -236,9 +245,148 @@ class _NewReportScreenState extends State<NewReportScreen>
     }
   }
 
+  void _setSelectedPhoto(Uint8List image) {
+    setState(() {
+      _image = image;
+      _imageUrl = null;
+      _photoError = null;
+      _photoWarnings = const [];
+      _sidewalkVisible = null;
+    });
+
+    _checkPhotoQuality(image);
+  }
+
+  Future<void> _checkPhotoQuality(Uint8List bytes) async {
+    final request = ++_photoCheckRequest;
+
+    setState(() {
+      _photoChecking = true;
+      _photoWarnings = const [];
+    });
+
+    final warnings = <String>[];
+
+    ui.ImmutableBuffer? buffer;
+    ui.ImageDescriptor? descriptor;
+    ui.Codec? codec;
+    ui.Image? decodedImage;
+
+    try {
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
+
+      // 1. Image dimensions.
+      if (descriptor.width < 640 || descriptor.height < 480) {
+        warnings.add(
+          'دقة الصورة منخفضة. يُفضّل اختيار صورة أكبر وأوضح.',
+        );
+      }
+
+      // Decode a small preview to estimate image quality.
+      codec = await descriptor.instantiateCodec(
+        targetWidth: 96,
+        targetHeight: 96,
+      );
+
+      final frame = await codec.getNextFrame();
+      decodedImage = frame.image;
+
+      final data = await decodedImage.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+
+      if (data != null) {
+        final pixels = data.buffer.asUint8List(
+          data.offsetInBytes,
+          data.lengthInBytes,
+        );
+
+        final width = decodedImage.width;
+        final height = decodedImage.height;
+
+        double brightnessSum = 0;
+        double edgeSum = 0;
+        int count = 0;
+        int edgeCount = 0;
+
+        for (int y = 0; y < height; y++) {
+          int? previousBrightness;
+
+          for (int x = 0; x < width; x++) {
+            final index = (y * width + x) * 4;
+
+            final red = pixels[index];
+            final green = pixels[index + 1];
+            final blue = pixels[index + 2];
+
+            final brightness =
+                (red * 0.299) +
+                (green * 0.587) +
+                (blue * 0.114);
+
+            brightnessSum += brightness;
+            count++;
+
+            if (previousBrightness != null) {
+              edgeSum +=
+                  (brightness - previousBrightness).abs();
+              edgeCount++;
+            }
+
+            previousBrightness = brightness.round();
+          }
+        }
+
+        final averageBrightness =
+            count == 0 ? 0.0 : brightnessSum / count;
+
+        final averageEdge =
+            edgeCount == 0 ? 0.0 : edgeSum / edgeCount;
+
+        // 2. Estimated low lighting.
+        if (averageBrightness < 65) {
+          warnings.add(
+            'تبدو الصورة مظلمة. حاول التصوير في إضاءة أفضل.',
+          );
+        }
+
+        // 3. Estimated lack of detail.
+        if (averageBrightness >= 65 && averageEdge < 4.5) {
+          warnings.add(
+            'قد تكون الصورة غير واضحة أو مهزوزة. تأكّد من وضوح تفاصيل الرصيف.',
+          );
+        }
+      }
+    } catch (error) {
+      debugPrint(
+        '[Khota photo] Quality inspection unavailable: $error',
+      );
+    } finally {
+      decodedImage?.dispose();
+      codec?.dispose();
+      descriptor?.dispose();
+      buffer?.dispose();
+    }
+
+    if (!mounted ||
+        request != _photoCheckRequest ||
+        !identical(_image, bytes)) {
+      return;
+    }
+
+    setState(() {
+      _photoWarnings = warnings;
+      _photoChecking = false;
+    });
+  }
+
   void _openPhotoGuide() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const PhotoGuideScreen()));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const PhotoGuideScreen(),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------- Step 2
@@ -605,8 +753,10 @@ class _NewReportScreenState extends State<NewReportScreen>
 
   // ---------------------------------------------------------------- Step 1 UI
 
+  
   Widget _buildPhotoStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
       children: [
@@ -619,13 +769,15 @@ class _NewReportScreenState extends State<NewReportScreen>
                 : Stack(
                     fit: StackFit.expand,
                     children: [
-                      const ColoredBox(color: Color(0xFF111413)),
+                      const ColoredBox(
+                        color: Color(0xFF111413),
+                      ),
                       Image.memory(
                         _image!,
                         fit: BoxFit.contain,
                         semanticLabel: 'معاينة صورة البلاغ',
                       ),
-                      PositionedDirectional(
+                      const PositionedDirectional(
                         top: 12,
                         start: 12,
                         child: _Pill(
@@ -637,20 +789,142 @@ class _NewReportScreenState extends State<NewReportScreen>
                   ),
           ),
         ),
-        if (_picking) ...[
+
+        if (_picking || _photoChecking) ...[
           const SizedBox(height: 12),
           LinearProgressIndicator(
             color: context.khota.primary,
-            semanticsLabel: 'جارٍ تجهيز الصورة',
+            semanticsLabel: 'جارٍ فحص الصورة',
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'جارٍ تجهيز الصورة وفحص جودتها...',
+            style: text.bodySmall,
           ),
         ],
+
         if (_photoError != null) ...[
           const SizedBox(height: 12),
           _ErrorBox(message: _photoError!),
         ],
+
+        // Photo quality warnings.
+        if (_image != null &&
+            _photoWarnings.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Semantics(
+            liveRegion: true,
+            child: InfoCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ملاحظات على جودة الصورة',
+                          style: text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        for (final warning in _photoWarnings)
+                          Padding(
+                            padding:
+                                const EdgeInsets.only(bottom: 6),
+                            child: Text(
+                              warning,
+                              style: text.bodySmall?.copyWith(
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                        Text(
+                          'هذه ملاحظات تقديرية. يمكنك إعادة التصوير أو متابعة البلاغ.',
+                          style: text.bodySmall?.copyWith(
+                            color: context.khota.muted(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        // Sidewalk visibility confirmation.
+        if (_image != null) ...[
+          const SizedBox(height: 14),
+          InfoCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'هل يظهر الرصيف والمشكلة في الصورة؟',
+                  style: text.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'تأكّد أن الصورة توضح المشكلة والمكان المحيط بها.',
+                  style: text.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('نعم، واضح'),
+                      selected: _sidewalkVisible == true,
+                      onSelected: (_) {
+                        setState(() {
+                          _sidewalkVisible = true;
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('لا، غير ظاهر'),
+                      selected: _sidewalkVisible == false,
+                      onSelected: (_) {
+                        setState(() {
+                          _sidewalkVisible = false;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          if (_sidewalkVisible == false) ...[
+            const SizedBox(height: 12),
+            const _ErrorBox(
+              message:
+                  'يجب أن يظهر الرصيف والمشكلة بوضوح. أعد التصوير أو اختر صورة أخرى.',
+            ),
+          ],
+        ],
+
         const SizedBox(height: 16),
+
         InfoCard(
-          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          padding:
+              const EdgeInsets.fromLTRB(14, 10, 8, 10),
           child: Row(
             children: [
               Icon(
@@ -664,7 +938,9 @@ class _NewReportScreenState extends State<NewReportScreen>
                   _image == null
                       ? 'صوّر المشكلة بوضوح مع إظهار ما حولها.'
                       : 'تأكّد أن المشكلة ظاهرة كاملة والصورة غير مهزوزة.',
-                  style: text.bodySmall?.copyWith(height: 1.6),
+                  style: text.bodySmall?.copyWith(
+                    height: 1.6,
+                  ),
                 ),
               ),
               TextButton(
@@ -677,6 +953,7 @@ class _NewReportScreenState extends State<NewReportScreen>
       ],
     );
   }
+
 
   /// Live camera inside the frame, or the placeholder when it is not usable.
   Widget _buildCameraFrame() {
