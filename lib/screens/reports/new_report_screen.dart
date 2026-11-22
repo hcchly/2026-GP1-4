@@ -70,11 +70,14 @@ class _NewReportScreenState extends State<NewReportScreen>
 
   int _step = 1;
 
+ 
   // Step 1: photo.
   Uint8List? _image;
   String? _imageUrl;
   bool _picking = false;
   String? _photoError;
+  List<String> _photoWarnings = const [];
+
 
   // Step 2: location.
   ReportLocation? _location;
