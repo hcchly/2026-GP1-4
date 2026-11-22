@@ -22,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
     final deviceBold = device.boldText;
 
     return Scaffold(
-      appBar: const GradientAppBar(title: 'الإعدادات'),
+      appBar: const GradientAppBar(title: 'الإعدادات', compact: true),
       body: ListenableBuilder(
         listenable: settings,
         builder: (context, _) {

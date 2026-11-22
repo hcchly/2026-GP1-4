@@ -36,6 +36,7 @@ class PasswordField extends StatefulWidget {
     super.key,
     required this.controller,
     required this.validator,
+    this.textDirection = TextDirection.ltr,
     this.hintText,
     this.helperText,
     this.enabled = true,
@@ -46,6 +47,7 @@ class PasswordField extends StatefulWidget {
 
   final TextEditingController controller;
   final FormFieldValidator<String> validator;
+  final TextDirection textDirection;
   final String? hintText;
   final String? helperText;
   final bool enabled;
@@ -76,12 +78,13 @@ class _PasswordFieldState extends State<PasswordField> {
       textInputAction: widget.textInputAction,
       onFieldSubmitted: widget.onFieldSubmitted,
       autofillHints: widget.autofillHints,
-      textDirection: TextDirection.ltr,
+      textDirection: widget.textDirection,
       textAlign: TextAlign.right,
       decoration: InputDecoration(
         hintText: widget.hintText,
         helperText: widget.helperText,
         helperMaxLines: 2,
+        errorMaxLines: 2,
         suffixIcon: IconButton(
           tooltip: _hidden ? 'إظهار كلمة المرور' : 'إخفاء كلمة المرور',
           onPressed: () => setState(() => _hidden = !_hidden),

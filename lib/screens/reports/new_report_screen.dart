@@ -16,7 +16,8 @@ import '../../theme/khota_colors.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/live_camera.dart';
 import '../../widgets/report_card.dart';
-import '../../widgets/report_flow_header.dart';
+import '../../widgets/gradient_app_bar.dart';
+import '../../widgets/report_step_indicator.dart';
 import '../info/photo_guide_screen.dart';
 
 /// Saves a report document. Defaults to [ReportService.submit].
@@ -430,13 +431,16 @@ class _NewReportScreenState extends State<NewReportScreen>
         if (!didPop) _back();
       },
       child: Scaffold(
+        appBar: GradientAppBar(
+          title: 'بلاغ جديد',
+          compact: true,
+          leading: _sending
+              ? const SizedBox.shrink()
+              : BackButton(onPressed: _back),
+        ),
         body: Column(
           children: [
-            ReportFlowHeader(
-              title: _titles[_step - 1],
-              step: _step,
-              onBack: _sending ? null : _back,
-            ),
+            ReportStepIndicator(title: _titles[_step - 1], step: _step),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),

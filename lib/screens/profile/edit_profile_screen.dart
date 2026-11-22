@@ -92,7 +92,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: const GradientAppBar(title: 'تعديل البيانات'),
+      appBar: const GradientAppBar(title: 'تعديل البيانات', compact: true),
       body: Form(
         key: _formKey,
         child: ListView(

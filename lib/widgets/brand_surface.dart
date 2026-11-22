@@ -62,17 +62,20 @@ class BrandIntro extends StatelessWidget {
     required this.description,
     required this.icon,
     this.eyebrow,
+    this.compact = false,
   });
 
   final String title;
   final String description;
   final IconData icon;
   final String? eyebrow;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return BrandSurface(
+      padding: EdgeInsets.all(compact ? 14 : 22),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -92,13 +95,14 @@ class BrandIntro extends StatelessWidget {
                 ],
                 Text(
                   title,
-                  style: text.headlineSmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    height: 1.35,
-                  ),
+                  style: (compact ? text.titleLarge : text.headlineSmall)
+                      ?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        height: 1.35,
+                      ),
                 ),
-                const SizedBox(height: 9),
+                SizedBox(height: compact ? 4 : 9),
                 Text(
                   description,
                   style: text.bodyMedium?.copyWith(
@@ -111,12 +115,12 @@ class BrandIntro extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(compact ? 8 : 12),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.22),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(icon, color: Colors.white, size: 26),
+            child: Icon(icon, color: Colors.white, size: compact ? 22 : 26),
           ),
         ],
       ),

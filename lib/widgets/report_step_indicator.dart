@@ -1,84 +1,49 @@
 import 'package:flutter/material.dart';
 
 import '../theme/khota_colors.dart';
-import 'gradient_header.dart';
 
-class ReportFlowHeader extends StatelessWidget {
-  const ReportFlowHeader({
+class ReportStepIndicator extends StatelessWidget {
+  const ReportStepIndicator({
     super.key,
     required this.title,
     required this.step,
-    this.onBack,
     this.stepLabels = const ['الصورة', 'الموقع', 'المراجعة'],
   });
 
   final String title;
   final int step;
-  final VoidCallback? onBack;
   final List<String> stepLabels;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    // The header stays compact at very large text sizes (up to 1.3x) so the
-    // step content and its buttons keep the screen; the content below still
-    // follows the full text size.
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
-      child: _header(text),
-    );
-  }
-
-  Widget _header(TextTheme text) {
-    return GradientHeader(
-      bottomRadius: 30,
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(18, 12, 18, 22),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                if (onBack != null) ...[
-                  IconButton(
-                    tooltip: 'رجوع',
-                    onPressed: onBack,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.white.withValues(alpha: 0.1),
-                    ),
-                    icon: const Icon(
-                      Icons.arrow_back_rounded,
-                      color: Colors.white,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: text.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'بلاغ جديد · خطوة $step من ${stepLabels.length}',
-                        style: text.labelMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.88),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: text.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'خطوة $step من ${stepLabels.length}',
+                  style: text.labelMedium?.copyWith(
+                    color: context.khota.mutedText,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
             Semantics(
               label:
                   'الخطوة $step من ${stepLabels.length}: ${stepLabels[step - 1]}',
@@ -126,21 +91,19 @@ class _StepSegment extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
-        color: current
-            ? colors.headerBadge
-            : Colors.white.withValues(alpha: 0.14),
+        color: current ? colors.primary : colors.surfaceSunken,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (done)
-            const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+            Icon(Icons.check_rounded, size: 16, color: colors.text)
           else
             Text(
               '$number',
               style: TextStyle(
-                color: current ? colors.onHeaderBadge : Colors.white,
+                color: current ? colors.onPrimary : colors.text,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -151,7 +114,7 @@ class _StepSegment extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: current ? colors.onHeaderBadge : Colors.white,
+                color: current ? colors.onPrimary : colors.text,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),

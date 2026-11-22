@@ -203,7 +203,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'خريطة خُطى'),
+      appBar: const GradientAppBar(title: 'خريطة خُطى', compact: true),
       body: StreamBuilder<List<MapReport>>(
         stream: _markers,
         builder: (context, snapshot) {

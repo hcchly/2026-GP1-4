@@ -30,6 +30,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _loading = false;
+  bool _submitted = false;
   bool _accepted = false;
   String? _error;
 
@@ -48,8 +49,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
+  void _clearError() {
+    if (_error != null) setState(() => _error = null);
+  }
+
   Future<void> _register() async {
-    setState(() => _error = null);
+    if (_loading) return;
+    setState(() {
+      _error = null;
+      _submitted = true;
+    });
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
@@ -67,11 +76,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         (_) => false,
       );
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = e.message;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'حدث خطأ غير متوقع، حاول مرة أخرى';
@@ -82,19 +93,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'إنشاء حساب'),
+      appBar: const GradientAppBar(
+        title: 'إنشاء حساب',
+        compact: true,
+        navigationDirection: TextDirection.ltr,
+      ),
       body: Form(
         key: _formKey,
+        onChanged: _clearError,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: AutofillGroup(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               const BrandIntro(
+                compact: true,
                 title: 'أول خطوة تبدأ هنا',
                 description: 'أنشئ حسابك وشارك في تحسين أرصفة الرياض.',
                 icon: Icons.person_add_alt_1_outlined,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               LabeledField(
                 label: 'الاسم الكامل',
                 child: TextFormField(
@@ -118,9 +138,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.email],
                   textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.right,
-                  decoration: const InputDecoration(
+                  textAlign: TextAlign.left,
+                  decoration: InputDecoration(
                     hintText: 'name@example.com',
+                    hintTextDirection: TextDirection.ltr,
+                    hintStyle: TextStyle(color: context.khota.mutedText),
+                    errorMaxLines: 2,
                   ),
                 ),
               ),
@@ -128,6 +151,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'كلمة المرور',
                 child: PasswordField(
                   controller: _passwordController,
+                  textDirection: TextDirection.rtl,
                   validator: Validators.newPassword,
                   enabled: !_loading,
                   helperText: '8 أحرف على الأقل',
@@ -138,6 +162,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 label: 'تأكيد كلمة المرور',
                 child: PasswordField(
                   controller: _confirmController,
+                  textDirection: TextDirection.rtl,
                   validator: _validateConfirm,
                   enabled: !_loading,
                   textInputAction: TextInputAction.done,

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
-import '../../widgets/brand_surface.dart';
 import '../shell/main_shell.dart';
 import 'login_screen.dart';
 
@@ -113,72 +112,66 @@ class _SplashScreenState extends State<SplashScreen>
         backgroundColor: context.khota.isDark
             ? context.khota.background
             : AppColors.gradientTop,
-        body: BrandSurface(
-          radius: 0,
-          padding: EdgeInsets.zero,
-          art: BrandArt.splash,
-          alignment: Alignment.center,
-          child: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // The lockup (word + mark) takes about 62% of the width.
-                final width = (constraints.maxWidth * 0.62)
-                    .clamp(0.0, 300.0)
-                    .toDouble();
-                return Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Center(
-                      child: AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, _) => _logo(width),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // The lockup (word + mark) takes about 62% of the width.
+              final width = (constraints.maxWidth * 0.62)
+                  .clamp(0.0, 300.0)
+                  .toDouble();
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, _) => _logo(width),
+                    ),
+                  ),
+                  Positioned(
+                    left: 24,
+                    right: 24,
+                    bottom: 42,
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        final p = Curves.easeOut.transform(_seg(1.6, 2.1));
+                        return Opacity(
+                          opacity: p,
+                          child: Transform.translate(
+                            offset: Offset(0, 8 * (1 - p)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'أرصفة أفضل تبدأ بخطوة',
+                            textAlign: TextAlign.center,
+                            style: text.bodyLarge?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.3,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Positioned(
-                      left: 24,
-                      right: 24,
-                      bottom: 42,
-                      child: AnimatedBuilder(
-                        animation: _controller,
-                        builder: (context, child) {
-                          final p = Curves.easeOut.transform(_seg(1.6, 2.1));
-                          return Opacity(
-                            opacity: p,
-                            child: Transform.translate(
-                              offset: Offset(0, 8 * (1 - p)),
-                              child: child,
-                            ),
-                          );
-                        },
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'أرصفة أفضل تبدأ بخطوة',
-                              textAlign: TextAlign.center,
-                              style: text.bodyLarge?.copyWith(
-                                color: Colors.white.withValues(alpha: 0.92),
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 0.3,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),

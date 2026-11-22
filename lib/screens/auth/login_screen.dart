@@ -39,7 +39,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _clearError() {
+    if (_error != null) setState(() => _error = null);
+  }
+
   Future<void> _signIn() async {
+    if (_loading) return;
     setState(() {
       _error = null;
       _submitted = true;
@@ -58,11 +63,13 @@ class _LoginScreenState extends State<LoginScreen> {
         (_) => false,
       );
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = e.message;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'حدث خطأ غير متوقع، حاول مرة أخرى';
@@ -71,6 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _forgotPassword() async {
+    if (_loading) return;
     setState(() => _error = null);
     if (!_emailFieldKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -96,11 +104,13 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } on AuthException catch (e) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = e.message;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'حدث خطأ غير متوقع، حاول مرة أخرى';
@@ -176,6 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Form(
                     key: _formKey,
+                    onChanged: _clearError,
                     autovalidateMode: _submitted
                         ? AutovalidateMode.onUserInteraction
                         : AutovalidateMode.disabled,
@@ -212,9 +223,14 @@ class _LoginScreenState extends State<LoginScreen> {
                               textInputAction: TextInputAction.next,
                               autofillHints: const [AutofillHints.email],
                               textDirection: TextDirection.ltr,
-                              textAlign: TextAlign.right,
-                              decoration: const InputDecoration(
+                              textAlign: TextAlign.left,
+                              decoration: InputDecoration(
                                 hintText: 'name@example.com',
+                                hintTextDirection: TextDirection.ltr,
+                                hintStyle: TextStyle(
+                                  color: context.khota.mutedText,
+                                ),
+                                errorMaxLines: 2,
                               ),
                             ),
                           ),

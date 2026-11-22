@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../models/app_user.dart';
 import '../../services/auth_service.dart';
 import '../../services/profile_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
-import '../../widgets/gradient_header.dart';
+import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../auth/login_screen.dart';
 import '../info/about_screen.dart';
@@ -92,108 +91,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Plain page background under the status bar.
-      value: context.khota.pageOverlayStyle,
-      child: Scaffold(
-        body: FutureBuilder<AppUser>(
-          future: _profile,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError || !snapshot.hasData) {
-              return _ErrorView(onRetry: _reload);
-            }
+    return Scaffold(
+      appBar: const GradientAppBar(title: 'الملف الشخصي', compact: true),
+      body: FutureBuilder<AppUser>(
+        future: _profile,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || !snapshot.hasData) {
+            return _ErrorView(onRetry: _reload);
+          }
 
-            final user = snapshot.data!;
-            return ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _ProfileHeader(user: user),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'الحساب',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 10),
-                      _MenuTile(
-                        icon: Icons.manage_accounts_outlined,
-                        label: 'تعديل البيانات',
-                        onTap: () => _openEditProfile(user),
-                      ),
-                      _MenuTile(
-                        icon: Icons.settings_outlined,
-                        label: 'الإعدادات',
-                        onTap: () => _open(const SettingsScreen()),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'المساعدة والمعلومات',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 10),
-                      _MenuTile(
-                        icon: Icons.photo_camera_outlined,
-                        label: 'دليل التصوير',
-                        onTap: () => _open(const PhotoGuideScreen()),
-                      ),
-                      _MenuTile(
-                        icon: Icons.privacy_tip_outlined,
-                        label: 'الخصوصية',
-                        onTap: () => _open(const PrivacyScreen()),
-                      ),
-                      _MenuTile(
-                        icon: Icons.info_outline,
-                        label: 'عن التطبيق',
-                        onTap: () => _open(const AboutScreen()),
-                      ),
-                      const SizedBox(height: 8),
-                      _MenuTile(
-                        icon: Icons.logout,
-                        label: 'تسجيل الخروج',
-                        color: AppColors.error,
-                        onTap: _confirmLogout,
-                      ),
-                    ],
-                  ),
+          final user = snapshot.data!;
+          return ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _ProfileSummary(user: user),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'الحساب',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    _MenuTile(
+                      icon: Icons.manage_accounts_outlined,
+                      label: 'تعديل البيانات',
+                      onTap: () => _openEditProfile(user),
+                    ),
+                    _MenuTile(
+                      icon: Icons.settings_outlined,
+                      label: 'الإعدادات',
+                      onTap: () => _open(const SettingsScreen()),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'المساعدة والمعلومات',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    _MenuTile(
+                      icon: Icons.photo_camera_outlined,
+                      label: 'دليل التصوير',
+                      onTap: () => _open(const PhotoGuideScreen()),
+                    ),
+                    _MenuTile(
+                      icon: Icons.privacy_tip_outlined,
+                      label: 'الخصوصية',
+                      onTap: () => _open(const PrivacyScreen()),
+                    ),
+                    _MenuTile(
+                      icon: Icons.info_outline,
+                      label: 'عن التطبيق',
+                      onTap: () => _open(const AboutScreen()),
+                    ),
+                    const SizedBox(height: 8),
+                    _MenuTile(
+                      icon: Icons.logout,
+                      label: 'تسجيل الخروج',
+                      color: AppColors.error,
+                      onTap: _confirmLogout,
+                    ),
+                  ],
                 ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.user});
+class _ProfileSummary extends StatelessWidget {
+  const _ProfileSummary({required this.user});
 
   final AppUser user;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    // Compact header (supervisor feedback 07): the account details take a
-    // single row so the menu gets most of the screen.
-    return GradientHeader(
-      bottomRadius: 24,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: context.khota.surface,
+        border: Border.all(color: context.khota.divider),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
-        padding: const EdgeInsetsDirectional.fromSTEB(20, 10, 20, 16),
+        padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 8),
         child: Row(
           children: [
             Semantics(
               label: 'الصورة الرمزية',
               child: Container(
-                width: 52,
-                height: 52,
+                width: 40,
+                height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: context.khota.headerBadge,
@@ -224,7 +225,7 @@ class _ProfileHeader extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: text.titleMedium?.copyWith(
-                        color: Colors.white,
+                        color: context.khota.text,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -236,7 +237,9 @@ class _ProfileHeader extends StatelessWidget {
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.bodySmall?.copyWith(color: AppColors.mist),
+                    style: text.bodySmall?.copyWith(
+                      color: context.khota.mutedText,
+                    ),
                   ),
                 ],
               ),
