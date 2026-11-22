@@ -10,6 +10,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/report_location.dart';
+import '../widgets/gradient_app_bar.dart';
 
 /// Connection point between the new-report flow and the location task.
 ///
@@ -250,7 +251,7 @@ class _ReportLocationPickerState extends State<_ReportLocationPicker> {
   Widget build(BuildContext context) {
     final selected = _selected;
     return Scaffold(
-      appBar: AppBar(title: const Text('تحديد الموقع يدوياً')),
+      appBar: const GradientAppBar(title: 'تحديد الموقع يدوياً'),
       body: SafeArea(
         top: false,
         child: Column(

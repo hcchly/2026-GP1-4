@@ -8,7 +8,7 @@ import '../../services/report_camera_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
-import '../../widgets/gradient_header.dart';
+import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/brand_surface.dart';
 
@@ -133,28 +133,7 @@ class _ReportPhotoScreenState extends State<ReportPhotoScreen> {
     return PopScope(
       canPop: !_uploading,
       child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(kToolbarHeight + 12),
-          child: GradientHeader(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: AppBar(
-                primary: false,
-                title: const Text('بلاغ جديد'),
-                centerTitle: true,
-                backgroundColor: Colors.transparent,
-                surfaceTintColor: Colors.transparent,
-                elevation: 0,
-                scrolledUnderElevation: 0,
-                foregroundColor: Colors.white,
-                titleTextStyle: text.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
-        ),
+        appBar: const GradientAppBar(title: 'بلاغ جديد'),
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(

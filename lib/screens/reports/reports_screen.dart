@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../models/citizen_report.dart';
 import '../../services/report_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
+import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/place_name.dart';
 import '../../widgets/report_status_widgets.dart';
@@ -366,20 +366,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Plain page background under the status bar.
-      value: context.khota.pageOverlayStyle,
-      child: SafeArea(
+    return Scaffold(
+      appBar: const GradientAppBar(title: 'بلاغاتي', compact: true),
+      body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 96),
           children: [
-            Text(
-              'بلاغاتي',
-              style: Theme.of(context).textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 20),
-
             if (previewMode) ...[
               InfoCard(
                 color: AppColors.tealLight.withValues(alpha: 0.18),

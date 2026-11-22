@@ -9,7 +9,7 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
   const GradientAppBar({
     super.key,
     required this.title,
-    this.compact = false,
+    this.compact = true,
     this.navigationDirection,
     this.leading,
   });
