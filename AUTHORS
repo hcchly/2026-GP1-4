@@ -10,3 +10,7 @@ Team members
 
 Supervisor
 - Prof. Reham Alabduljabbar
+
+Note on commit history
+- Commits authored as "Reema" were made by Rahaf Alshalwi. The laptop
+  she used was set up under her sister's name, so Git recorded that name.
