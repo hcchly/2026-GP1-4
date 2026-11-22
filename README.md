@@ -5,6 +5,14 @@ application that allows citizens in Riyadh to report sidewalk and curb ramp
 issues by submitting a photo and a location, and to track the status of their
 reports.
 
+## Goal
+
+Damaged sidewalks and curb ramps make walking in Riyadh harder and less safe,
+especially for wheelchair users, older adults and parents with strollers.
+Khota gives citizens a simple way to report these defects, and uses AI to
+identify the defect type and how severe it is so the most dangerous problems
+can be fixed first.
+
 ## Team Members
 
 - Hala Alduhayan
@@ -24,8 +32,8 @@ Supervisor: Prof. Reham Alabduljabbar
 - Arabic (RTL) interface, adjustable font size, and light/dark appearance
 
 AI-based severity assessment, PIQS scoring, notifications, and the
-administrator dashboard are planned for Release 2. The machine-learning code
-is in a separate repository.
+administrator dashboard are planned for Release 2. Model documents are in
+`docs/sprint-2/model/`.
 
 ## Technologies
 
@@ -105,7 +113,16 @@ lib/
   widgets/    Shared UI components
 test/         Unit and widget tests
 functions-map/  Cloud Function that maintains the mapReports collection
+docs/         Documents for each sprint (sprint-0, sprint-1, sprint-2)
+AUTHORS       Team members and supervisor
 ```
+
+## Sprints
+
+The code at the end of each sprint is marked with a Git tag:
+[`sprint-1`](https://github.com/hcchly/Khota/tree/sprint-1) and
+[`sprint-2`](https://github.com/hcchly/Khota/tree/sprint-2). Sprint documents
+are in [`docs/`](docs/).
 
 ## Repository
 
