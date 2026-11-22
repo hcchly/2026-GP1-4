@@ -646,10 +646,16 @@ int _photoCheckRequest = 0;
                 ),
               ]
             : [
-                ElevatedButton(
-                  onPressed: _picking ? null : () => _goTo(2),
-                  child: const Text('استخدام الصورة'),
-                ),
+               
+ElevatedButton(
+  onPressed: _picking ||
+          _photoChecking ||
+          _sidewalkVisible != true
+      ? null
+      : () => _goTo(2),
+  child: const Text('استخدام الصورة'),
+),
+
                 const SizedBox(height: 10),
                 Row(
                   children: [
