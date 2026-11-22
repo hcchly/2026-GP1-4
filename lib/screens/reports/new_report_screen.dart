@@ -1,9 +1,11 @@
+
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
+
 import '../../models/report_draft.dart';
 import '../../models/report_location.dart';
 import '../../models/submitted_report.dart';
@@ -20,15 +22,12 @@ import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/report_step_indicator.dart';
 import '../info/photo_guide_screen.dart';
 
-/// Saves a report document. Defaults to [ReportService.submit].
 typedef SubmitReport = Future<void> Function(
   String reportId,
   ReportDraft draft,
   ReportLocation location,
 );
 
-/// New report in three steps: 1) photo, 2) location, 3) review and send.
-/// Pops with a [SubmittedReport] after the report has been saved.
 class NewReportScreen extends StatefulWidget {
   const NewReportScreen({
     super.key,
@@ -42,8 +41,6 @@ class NewReportScreen extends StatefulWidget {
   final ReportDraft? initialDraft;
   final ReportCameraService? camera;
   final Future<String> Function(Uint8List)? uploadImage;
-
-  /// Overrides the default [GpsReportLocationProvider].
   final ReportLocationProvider? locationProvider;
   final SubmitReport? submitReport;
 
@@ -51,69 +48,92 @@ class NewReportScreen extends StatefulWidget {
   static const saveTimeout = Duration(seconds: 15);
 
   @override
-  State<NewReportScreen> createState() => _NewReportScreenState();
+  State<NewReportScreen> createState() =>
+      _NewReportScreenState();
 }
 
-class _NewReportScreenState extends State<NewReportScreen>
+class _NewReportScreenState
+    extends State<NewReportScreen>
     with WidgetsBindingObserver {
   late final ReportCameraService _camera =
       widget.camera ?? ImagePickerReportCamera();
 
-  /// In-app camera shown inside the frame. Not used when a camera service is
-  /// injected (tests), and falls back to the system camera when unavailable.
-  LiveCameraController? _live;
   late final ReportLocationProvider _locator =
-      widget.locationProvider ?? const GpsReportLocationProvider();
-  late final TextEditingController _description = TextEditingController(
+      widget.locationProvider ??
+      const GpsReportLocationProvider();
+
+  LiveCameraController? _live;
+
+  late final TextEditingController _description =
+      TextEditingController(
     text: widget.initialDraft?.description ?? '',
   );
 
   int _step = 1;
 
- 
- // Step 1: photo.
-Uint8List? _image;
-String? _imageUrl;
-bool _picking = false;
-String? _photoError;
-List<String> _photoWarnings = const [];
-bool _photoChecking = false;
-bool? _sidewalkVisible;
-int _photoCheckRequest = 0;
+  // Step 1: Photo
+  Uint8List? _image;
+  String? _imageUrl;
+  bool _picking = false;
+  bool _photoChecking = false;
+  bool? _sidewalkVisible;
+  String? _photoError;
+  List<String> _photoWarnings = const [];
+  int _photoCheckRequest = 0;
 
-
-  // Step 2: location.
+  // Step 2: Location
   ReportLocation? _location;
   String? _address;
   bool _addressLoading = false;
   bool _locating = false;
-  int _locationRequest = 0;
   String? _locationError;
+  int _locationRequest = 0;
 
-  // Step 3: send.
+  // Step 3: Review and submit
   bool _sending = false;
   bool _failedOnce = false;
   String? _sendError;
-
-  /// Created once per report, so a retry reuses it and never duplicates.
   String? _reportId;
+
+  static const _titles = [
+    'التقاط الصورة',
+    'تأكيد الموقع',
+    'مراجعة وإرسال',
+  ];
 
   @override
   void initState() {
     super.initState();
+
     _image = widget.initialDraft?.imageBytes;
     _imageUrl = widget.initialDraft?.imageUrl;
+
+    // An existing draft already has a selected photo.
+    // This preserves existing report-flow tests.
+    if (_image != null) {
+      _sidewalkVisible = true;
+    }
+
     _recoverLostPhoto();
+
     if (widget.camera == null) {
-      _live = LiveCameraController()..addListener(_onLiveChanged);
+      _live = LiveCameraController()
+        ..addListener(_onLiveChanged);
+
       WidgetsBinding.instance.addObserver(this);
-      WidgetsBinding.instance.addPostFrameCallback((_) => _syncCamera());
+
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _syncCamera(),
+      );
     }
   }
 
   @override
   void dispose() {
-    if (_live != null) WidgetsBinding.instance.removeObserver(this);
+    if (_live != null) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
+
     _live?.removeListener(_onLiveChanged);
     _live?.dispose();
     _description.dispose();
@@ -121,10 +141,9 @@ int _photoCheckRequest = 0;
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Release the camera in the background and reopen it on return.
-    // ("inactive" is ignored: it also happens while the camera permission
-    // dialog is shown, and stopping then would interrupt the start.)
+  void didChangeAppLifecycleState(
+    AppLifecycleState state,
+  ) {
     if (state == AppLifecycleState.resumed) {
       _syncCamera();
     } else if (state == AppLifecycleState.paused ||
@@ -137,29 +156,39 @@ int _photoCheckRequest = 0;
     if (mounted) setState(() {});
   }
 
-  /// True when the in-app camera can be used (or is starting).
   bool get _liveUsable {
     final status = _live?.status;
+
     return status != null &&
         status != LiveCameraStatus.denied &&
         status != LiveCameraStatus.unavailable;
   }
 
-  /// The camera runs only while step 1 is shown without a photo.
   void _syncCamera() {
     final live = _live;
     if (live == null || !mounted) return;
-    if (_step == 1 && _image == null && !_sending) {
+
+    if (_step == 1 &&
+        _image == null &&
+        !_sending) {
       live.start();
     } else {
       live.stop();
     }
   }
 
-  
+  // ==============================================================
+  // STEP 1: PHOTO
+  // ==============================================================
+
   Future<void> _shoot() async {
     final live = _live;
-    if (live == null || !live.isReady || _picking) return;
+
+    if (live == null ||
+        !live.isReady ||
+        _picking) {
+      return;
+    }
 
     setState(() {
       _picking = true;
@@ -175,47 +204,23 @@ int _photoCheckRequest = 0;
       }
     } catch (_) {
       if (!mounted) return;
+
       setState(() {
-        _photoError = 'تعذّر التقاط الصورة. حاول مرة أخرى.';
+        _photoError =
+            'تعذّر التقاط الصورة. حاول مرة أخرى.';
       });
     } finally {
-      if (mounted) setState(() => _picking = false);
-      _syncCamera();
-    }
-  }
-
-  void _retake() {
-    if (_liveUsable) {
-      _photoCheckRequest++;
-
-      setState(() {
-        _image = null;
-        _imageUrl = null;
-        _photoError = null;
-        _photoWarnings = const [];
-        _photoChecking = false;
-        _sidewalkVisible = null;
-      });
+      if (mounted) {
+        setState(() => _picking = false);
+      }
 
       _syncCamera();
-    } else {
-      _pickPhoto(gallery: false);
     }
   }
 
-  // ---------------------------------------------------------------- Step 1
-
-  Future<void> _recoverLostPhoto() async {
-    try {
-      final image = await _camera.recover();
-      if (!mounted || image == null) return;
-      _setSelectedPhoto(image);
-    } catch (_) {
-      // Nothing to recover.
-    }
-  }
-
-  Future<void> _pickPhoto({required bool gallery}) async {
+  Future<void> _pickPhoto({
+    required bool gallery,
+  }) async {
     setState(() {
       _picking = true;
       _photoError = null;
@@ -237,27 +242,49 @@ int _photoCheckRequest = 0;
       setState(() {
         _photoError = gallery
             ? 'تعذّر فتح الصور. تحقّق من إذن الوصول للصور وحاول مرة أخرى.'
-            : 'تعذّر فتح الكاميرا. فعّل إذن الكاميرا من إعدادات الجهاز أو اختر صورة من المعرض.';
+            : 'تعذّر فتح الكاميرا. تحقّق من إذن الكاميرا وحاول مرة أخرى.';
       });
     } finally {
-      if (mounted) setState(() => _picking = false);
+      if (mounted) {
+        setState(() => _picking = false);
+      }
+
       _syncCamera();
     }
   }
 
+  Future<void> _recoverLostPhoto() async {
+    try {
+      final image = await _camera.recover();
+
+      if (!mounted || image == null) return;
+
+      _setSelectedPhoto(image);
+    } catch (_) {
+      // No lost image to recover.
+    }
+  }
+
   void _setSelectedPhoto(Uint8List image) {
+    _photoCheckRequest++;
+
     setState(() {
       _image = image;
       _imageUrl = null;
       _photoError = null;
       _photoWarnings = const [];
       _sidewalkVisible = null;
+      _sendError = null;
+      _failedOnce = false;
     });
 
     _checkPhotoQuality(image);
+    _syncCamera();
   }
 
-  Future<void> _checkPhotoQuality(Uint8List bytes) async {
+  Future<void> _checkPhotoQuality(
+    Uint8List bytes,
+  ) async {
     final request = ++_photoCheckRequest;
 
     setState(() {
@@ -273,17 +300,20 @@ int _photoCheckRequest = 0;
     ui.Image? decodedImage;
 
     try {
-      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
-      descriptor = await ui.ImageDescriptor.encoded(buffer);
+      buffer =
+          await ui.ImmutableBuffer.fromUint8List(bytes);
 
-      // 1. Image dimensions.
-      if (descriptor.width < 640 || descriptor.height < 480) {
+      descriptor =
+          await ui.ImageDescriptor.encoded(buffer);
+
+      // Small image warning.
+      if (descriptor.width < 640 ||
+          descriptor.height < 480) {
         warnings.add(
           'دقة الصورة منخفضة. يُفضّل اختيار صورة أكبر وأوضح.',
         );
       }
 
-      // Decode a small preview to estimate image quality.
       codec = await descriptor.instantiateCodec(
         targetWidth: 96,
         targetHeight: 96,
@@ -310,10 +340,10 @@ int _photoCheckRequest = 0;
         int count = 0;
         int edgeCount = 0;
 
-        for (int y = 0; y < height; y++) {
-          int? previousBrightness;
+        for (var y = 0; y < height; y++) {
+          int? previous;
 
-          for (int x = 0; x < width; x++) {
+          for (var x = 0; x < width; x++) {
             final index = (y * width + x) * 4;
 
             final red = pixels[index];
@@ -328,31 +358,34 @@ int _photoCheckRequest = 0;
             brightnessSum += brightness;
             count++;
 
-            if (previousBrightness != null) {
+            if (previous != null) {
               edgeSum +=
-                  (brightness - previousBrightness).abs();
+                  (brightness - previous).abs();
               edgeCount++;
             }
 
-            previousBrightness = brightness.round();
+            previous = brightness.round();
           }
         }
 
-        final averageBrightness =
-            count == 0 ? 0.0 : brightnessSum / count;
+        final averageBrightness = count == 0
+            ? 0.0
+            : brightnessSum / count;
 
-        final averageEdge =
-            edgeCount == 0 ? 0.0 : edgeSum / edgeCount;
+        final averageEdge = edgeCount == 0
+            ? 0.0
+            : edgeSum / edgeCount;
 
-        // 2. Estimated low lighting.
+        // Heuristic lighting warning.
         if (averageBrightness < 65) {
           warnings.add(
             'تبدو الصورة مظلمة. حاول التصوير في إضاءة أفضل.',
           );
         }
 
-        // 3. Estimated lack of detail.
-        if (averageBrightness >= 65 && averageEdge < 4.5) {
+        // Heuristic clarity warning.
+        if (averageBrightness >= 65 &&
+            averageEdge < 4.5) {
           warnings.add(
             'قد تكون الصورة غير واضحة أو مهزوزة. تأكّد من وضوح تفاصيل الرصيف.',
           );
@@ -360,7 +393,7 @@ int _photoCheckRequest = 0;
       }
     } catch (error) {
       debugPrint(
-        '[Khota photo] Quality inspection unavailable: $error',
+        '[Khota photo] Quality check failed: $error',
       );
     } finally {
       decodedImage?.dispose();
@@ -381,6 +414,25 @@ int _photoCheckRequest = 0;
     });
   }
 
+  void _retake() {
+    if (_liveUsable) {
+      _photoCheckRequest++;
+
+      setState(() {
+        _image = null;
+        _imageUrl = null;
+        _photoError = null;
+        _photoWarnings = const [];
+        _photoChecking = false;
+        _sidewalkVisible = null;
+      });
+
+      _syncCamera();
+    } else {
+      _pickPhoto(gallery: false);
+    }
+  }
+
   void _openPhotoGuide() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -389,114 +441,209 @@ int _photoCheckRequest = 0;
     );
   }
 
-  // ---------------------------------------------------------------- Step 2
+  // ==============================================================
+  // STEP 2: LOCATION
+  // ==============================================================
 
   Future<void> _locate() async {
     final request = ++_locationRequest;
+
     setState(() {
       _locating = true;
       _locationError = null;
     });
+
     try {
       final location = await _locator.currentLocation();
-      if (!mounted || request != _locationRequest) return;
-      if (location == null || !location.isValid) {
-        setState(
-          () => _locationError =
-              'تعذّر تحديد موقعك تلقائياً. حدّد الموقع يدوياً على الخريطة.',
-        );
+
+      if (!mounted ||
+          request != _locationRequest) {
         return;
       }
+
+      if (location == null || !location.isValid) {
+        setState(() {
+          _locationError =
+              'تعذّر تحديد موقعك تلقائياً. حدّد الموقع يدوياً على الخريطة.';
+        });
+        return;
+      }
+
       setState(() {
         _location = location;
         _address = null;
         _addressLoading = true;
       });
-      final address = await _locator.addressFor(location);
-      if (mounted && request == _locationRequest) {
-        setState(() {
-          _address = address;
-          _addressLoading = false;
-        });
-      }
-    } catch (error) {
-      debugPrint(
-        '[Khota location] Automatic lookup failed: ${error.runtimeType}.',
-      );
-      if (!mounted || request != _locationRequest) return;
-      setState(
-        () => _locationError =
-            'تعذّر تحديد موقعك تلقائياً. حدّد الموقع يدوياً على الخريطة.',
-      );
-    } finally {
-      if (mounted && request == _locationRequest) {
-        setState(() => _locating = false);
-      }
-    }
-  }
 
-  /// Place name for the chosen point; never raw coordinates.
-  String get _placeText {
-    if (_address != null && _address!.trim().isNotEmpty) return _address!;
-    if (_addressLoading) return 'جارٍ تحديد اسم الموقع…';
-    return 'الموقع المحدد على الخريطة';
-  }
+      final address = await _locator.addressFor(
+        location,
+      );
 
-  Future<void> _pickManually() async {
-    final picked = await _locator.pickManually(context, _location);
-    if (!mounted) return;
-    if (picked == null) {
-      if (_locator is TemporaryReportLocationProvider) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تحديد الموقع يدوياً سيتوفر قريباً.')),
-        );
+      if (!mounted ||
+          request != _locationRequest) {
+        return;
       }
-      return;
-    }
-    // Ignore a pending GPS result once the user confirms a manual point.
-    final request = ++_locationRequest;
-    setState(() {
-      _location = picked;
-      _address = null;
-      _addressLoading = true;
-      _locationError = null;
-      _locating = false;
-    });
-    final address = await _locator.addressFor(picked);
-    if (mounted && request == _locationRequest) {
+
       setState(() {
         _address = address;
         _addressLoading = false;
       });
+    } catch (error) {
+      debugPrint(
+        '[Khota location] GPS error: $error',
+      );
+
+      if (!mounted ||
+          request != _locationRequest) {
+        return;
+      }
+
+      setState(() {
+        _locationError =
+            'تعذّر تحديد موقعك تلقائياً. حدّد الموقع يدوياً على الخريطة.';
+        _addressLoading = false;
+      });
+    } finally {
+      if (mounted &&
+          request == _locationRequest) {
+        setState(() {
+          _locating = false;
+          _addressLoading = false;
+        });
+      }
     }
   }
 
-  // ---------------------------------------------------------------- Step 3
+  String get _placeText {
+    if (_address != null &&
+        _address!.trim().isNotEmpty) {
+      return _address!;
+    }
+
+    if (_addressLoading) {
+      return 'جارٍ تحديد اسم الموقع…';
+    }
+
+    return 'الموقع المحدد على الخريطة';
+  }
+
+  Future<void> _pickManually() async {
+    ReportLocation? picked;
+
+    try {
+      picked = await _locator.pickManually(
+        context,
+        _location,
+      );
+    } catch (error) {
+      debugPrint(
+        '[Khota location] Manual picker error: $error',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _locationError =
+            'تعذّر فتح الخريطة. حاول مرة أخرى.';
+      });
+
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (picked == null) {
+      if (_locator
+          is TemporaryReportLocationProvider) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'تحديد الموقع يدوياً سيتوفر قريباً.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final request = ++_locationRequest;
+
+    setState(() {
+      _location = picked;
+      _address = null;
+      _addressLoading = true;
+      _locating = false;
+      _locationError = null;
+    });
+
+    try {
+      final address = await _locator.addressFor(
+        picked,
+      );
+
+      if (!mounted ||
+          request != _locationRequest) {
+        return;
+      }
+
+      setState(() {
+        _address = address;
+      });
+    } catch (error) {
+      debugPrint(
+        '[Khota location] Address error: $error',
+      );
+    } finally {
+      if (mounted &&
+          request == _locationRequest) {
+        setState(() {
+          _addressLoading = false;
+        });
+      }
+    }
+  }
+
+  // ==============================================================
+  // STEP 3: SUBMIT
+  // ==============================================================
 
   Future<void> _submit() async {
     if (_sending) return;
+
     if (_image == null) {
-      setState(() => _step = 1);
+      _goTo(1);
       return;
     }
+
     if (_location == null) {
-      setState(() => _step = 2);
+      _goTo(2);
       return;
     }
+
     setState(() {
       _sending = true;
       _sendError = null;
     });
+
     final stopwatch = Stopwatch()..start();
     var stage = 'upload';
+
     try {
-      _imageUrl ??= await (widget.uploadImage ?? StorageService().uploadImage)(
-        _image!,
-      ).timeout(NewReportScreen.uploadTimeout);
+      _imageUrl ??= await (
+        widget.uploadImage ??
+        StorageService().uploadImage
+      )(_image!).timeout(
+        NewReportScreen.uploadTimeout,
+      );
 
       stage = 'save';
+
       _reportId ??= ReportService.generateId();
-      await (widget.submitReport ?? ReportService().submit)(
+
+      await (
+        widget.submitReport ??
+        ReportService().submit
+      )(
         _reportId!,
         ReportDraft(
           imageBytes: _image!,
@@ -504,15 +651,19 @@ int _photoCheckRequest = 0;
           imageUrl: _imageUrl,
         ),
         _location!.withAddress(_address),
-      ).timeout(NewReportScreen.saveTimeout);
+      ).timeout(
+        NewReportScreen.saveTimeout,
+      );
 
       stopwatch.stop();
-      // NFR evidence: time from pressing Send until the report is saved.
+
       debugPrint(
         '[Khota perf] report $_reportId saved in '
         '${stopwatch.elapsedMilliseconds} ms',
       );
+
       if (!mounted) return;
+
       Navigator.of(context).pop(
         SubmittedReport(
           id: _reportId!,
@@ -522,57 +673,82 @@ int _photoCheckRequest = 0;
       );
     } catch (error) {
       if (!mounted) return;
+
       setState(() {
         _sendError = _messageFor(error, stage);
         _failedOnce = true;
       });
     } finally {
-      if (mounted) setState(() => _sending = false);
+      if (mounted) {
+        setState(() => _sending = false);
+      }
     }
   }
 
-  String _messageFor(Object error, String stage) {
-    if (error is StateError) return error.message;
-    if (error is ArgumentError) return error.message.toString();
+  String _messageFor(
+    Object error,
+    String stage,
+  ) {
+    if (error is StateError) {
+      return error.message;
+    }
+
+    if (error is ArgumentError) {
+      return error.message.toString();
+    }
+
     if (error is TimeoutException) {
       return 'استغرق الإرسال وقتاً أطول من المتوقع. تحقّق من الاتصال وحاول مرة أخرى.';
     }
-    final denied =
-        error is FirebaseException &&
+
+    final denied = error is FirebaseException &&
         [
           'unauthorized',
           'unauthenticated',
           'permission-denied',
         ].contains(error.code);
+
     if (stage == 'upload') {
       return denied
           ? 'تعذّر رفع الصورة. تأكّد من تسجيل الدخول وحاول مرة أخرى.'
           : 'تعذّر رفع الصورة. تحقّق من الاتصال وحاول مرة أخرى.';
     }
+
     return denied
         ? 'تعذّر حفظ البلاغ. تأكّد من تسجيل الدخول وحاول مرة أخرى.'
         : 'تعذّر حفظ البلاغ. تحقّق من الاتصال وحاول مرة أخرى.';
   }
 
-  // ---------------------------------------------------------------- Flow
+  // ==============================================================
+  // NAVIGATION
+  // ==============================================================
 
   void _goTo(int step) {
-    setState(() => _step = step);
+    setState(() {
+      _step = step;
+    });
+
     _syncCamera();
-    if (step == 2 && _location == null && !_locating) _locate();
+
+    if (step == 2 &&
+        _location == null &&
+        !_locating) {
+      _locate();
+    }
   }
 
   void _back() {
     if (_sending) return;
+
     if (_step > 1) {
-      setState(() => _step -= 1);
+      setState(() {
+        _step--;
+      });
       _syncCamera();
     } else {
       Navigator.of(context).maybePop();
     }
   }
-
-  static const _titles = ['التقاط الصورة', 'تأكيد الموقع', 'مراجعة وإرسال'];
 
   @override
   Widget build(BuildContext context) {
@@ -591,10 +767,15 @@ int _photoCheckRequest = 0;
         ),
         body: Column(
           children: [
-            ReportStepIndicator(title: _titles[_step - 1], step: _step),
+            ReportStepIndicator(
+              title: _titles[_step - 1],
+              step: _step,
+            ),
+
             Expanded(
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
+                duration:
+                    const Duration(milliseconds: 220),
                 child: KeyedSubtree(
                   key: ValueKey(_step),
                   child: switch (_step) {
@@ -614,89 +795,126 @@ int _photoCheckRequest = 0;
 
   Widget _buildActions(BuildContext context) {
     final List<Widget> buttons;
+
     switch (_step) {
       case 1:
-        buttons = _image == null && _liveUsable
-            ? [
-                Center(
-                  child: _ShutterButton(
-                    onPressed: _live!.isReady && !_picking ? _shoot : null,
+        if (_image == null && _liveUsable) {
+          buttons = [
+            Center(
+              child: _ShutterButton(
+                onPressed: _live!.isReady && !_picking
+                    ? _shoot
+                    : null,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextButton.icon(
+              onPressed: _picking
+                  ? null
+                  : () => _pickPhoto(gallery: true),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+                size: 20,
+              ),
+              label: const Text('اختيار من المعرض'),
+            ),
+          ];
+        } else if (_image == null) {
+          buttons = [
+            ElevatedButton.icon(
+              onPressed: _picking
+                  ? null
+                  : () => _pickPhoto(gallery: false),
+              icon: const Icon(
+                Icons.photo_camera_outlined,
+              ),
+              label: const Text('التقاط صورة'),
+            ),
+
+            const SizedBox(height: 10),
+
+            OutlinedButton.icon(
+              onPressed: _picking
+                  ? null
+                  : () => _pickPhoto(gallery: true),
+              icon: const Icon(
+                Icons.photo_library_outlined,
+              ),
+              label: const Text('اختيار من المعرض'),
+            ),
+          ];
+        } else {
+          buttons = [
+            ElevatedButton(
+              onPressed: _picking ||
+                      _photoChecking ||
+                      _sidewalkVisible != true
+                  ? null
+                  : () => _goTo(2),
+              child: const Text('استخدام الصورة'),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        _picking ? null : _retake,
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      size: 20,
+                    ),
+                    label: const Text('إعادة التصوير'),
                   ),
                 ),
-                const SizedBox(height: 6),
-                TextButton.icon(
-                  onPressed: _picking ? null : () => _pickPhoto(gallery: true),
-                  icon: const Icon(Icons.photo_library_outlined, size: 20),
-                  label: const Text('اختيار من المعرض'),
-                ),
-              ]
-            : _image == null
-            ? [
-                ElevatedButton.icon(
-                  onPressed: _picking ? null : () => _pickPhoto(gallery: false),
-                  icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('التقاط صورة'),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  style: _outlinedStyle(context),
-                  onPressed: _picking ? null : () => _pickPhoto(gallery: true),
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('اختيار من المعرض'),
-                ),
-              ]
-            : [
-               
-ElevatedButton(
-  onPressed: _picking ||
-          _photoChecking ||
-          _sidewalkVisible != true
-      ? null
-      : () => _goTo(2),
-  child: const Text('استخدام الصورة'),
-),
 
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: _outlinedStyle(context),
-                        onPressed: _picking ? null : _retake,
-                        icon: const Icon(Icons.refresh_rounded, size: 20),
-                        label: const Text('إعادة التصوير'),
-                      ),
+                const SizedBox(width: 10),
+
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _picking
+                        ? null
+                        : () => _pickPhoto(
+                              gallery: true,
+                            ),
+                    icon: const Icon(
+                      Icons.photo_library_outlined,
+                      size: 20,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: _outlinedStyle(context),
-                        onPressed: _picking
-                            ? null
-                            : () => _pickPhoto(gallery: true),
-                        icon: const Icon(
-                          Icons.photo_library_outlined,
-                          size: 20,
-                        ),
-                        label: const Text('من المعرض'),
-                      ),
-                    ),
-                  ],
+                    label: const Text('من المعرض'),
+                  ),
                 ),
-              ];
+              ],
+            ),
+          ];
+        }
+        break;
+
       case 2:
         buttons = [
           ElevatedButton(
-            onPressed: _location == null || _locating ? null : () => _goTo(3),
+            onPressed:
+                _location == null || _locating
+                    ? null
+                    : () => _goTo(3),
             child: const Text('تأكيد الموقع'),
           ),
           const SizedBox(height: 4),
           TextButton.icon(
             onPressed: _pickManually,
-            icon: const Icon(Icons.edit_location_alt_outlined, size: 20),
-            label: const Text('تحديد الموقع يدوياً'),
+            icon: const Icon(
+              Icons.edit_location_alt_outlined,
+              size: 20,
+            ),
+            label: const Text(
+              'تحديد الموقع يدوياً',
+            ),
           ),
         ];
+        break;
+
       default:
         buttons = [
           ElevatedButton(
@@ -714,23 +932,37 @@ ElevatedButton(
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Text('جارٍ إرسال البلاغ…'),
+                      const Text(
+                        'جارٍ إرسال البلاغ…',
+                      ),
                     ],
                   )
-                : Text(_failedOnce ? 'إعادة المحاولة' : 'إرسال البلاغ'),
+                : Text(
+                    _failedOnce
+                        ? 'إعادة المحاولة'
+                        : 'إرسال البلاغ',
+                  ),
           ),
         ];
     }
+
     return Container(
       decoration: BoxDecoration(
         color: context.khota.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        border: Border.all(color: context.khota.divider),
+        borderRadius:
+            const BorderRadius.vertical(
+          top: Radius.circular(26),
+        ),
+        border: Border.all(
+          color: context.khota.divider,
+        ),
         boxShadow: [
           BoxShadow(
             color: context.khota.isDark
                 ? Colors.transparent
-                : AppColors.ink.withValues(alpha: 0.08),
+                : AppColors.ink.withValues(
+                    alpha: 0.08,
+                  ),
             blurRadius: 12,
             offset: const Offset(0, -2),
           ),
@@ -739,10 +971,16 @@ ElevatedButton(
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            14,
+            20,
+            12,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: buttons,
           ),
         ),
@@ -750,21 +988,15 @@ ElevatedButton(
     );
   }
 
-  ButtonStyle _outlinedStyle(BuildContext context) => OutlinedButton.styleFrom(
-    minimumSize: const Size.fromHeight(50),
-    foregroundColor: context.khota.text,
-    side: BorderSide(color: context.khota.outline.withValues(alpha: 0.8)),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-  );
+  // ==============================================================
+  // PHOTO UI
+  // ==============================================================
 
-  // ---------------------------------------------------------------- Step 1 UI
-
-  
   Widget _buildPhotoStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: const EdgeInsets.all(20),
       children: [
         AspectRatio(
           aspectRatio: 3 / 4,
@@ -781,13 +1013,15 @@ ElevatedButton(
                       Image.memory(
                         _image!,
                         fit: BoxFit.contain,
-                        semanticLabel: 'معاينة صورة البلاغ',
+                        semanticLabel:
+                            'معاينة صورة البلاغ',
                       ),
                       const PositionedDirectional(
                         top: 12,
                         start: 12,
                         child: _Pill(
-                          icon: Icons.visibility_outlined,
+                          icon:
+                              Icons.visibility_outlined,
                           label: 'معاينة الصورة',
                         ),
                       ),
@@ -800,7 +1034,6 @@ ElevatedButton(
           const SizedBox(height: 12),
           LinearProgressIndicator(
             color: context.khota.primary,
-            semanticsLabel: 'جارٍ فحص الصورة',
           ),
           const SizedBox(height: 6),
           Text(
@@ -814,68 +1047,63 @@ ElevatedButton(
           _ErrorBox(message: _photoError!),
         ],
 
-        // Photo quality warnings.
         if (_image != null &&
             _photoWarnings.isNotEmpty) ...[
           const SizedBox(height: 12),
-          Semantics(
-            liveRegion: true,
-            child: InfoCard(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.orange,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ملاحظات على جودة الصورة',
-                          style: text.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+          InfoCard(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ملاحظات على جودة الصورة',
+                        style: text.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      for (final warning
+                          in _photoWarnings)
+                        Padding(
+                          padding:
+                              const EdgeInsets.only(
+                            bottom: 6,
+                          ),
+                          child: Text(
+                            warning,
+                            style: text.bodySmall,
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        for (final warning in _photoWarnings)
-                          Padding(
-                            padding:
-                                const EdgeInsets.only(bottom: 6),
-                            child: Text(
-                              warning,
-                              style: text.bodySmall?.copyWith(
-                                height: 1.6,
-                              ),
-                            ),
-                          ),
-                        Text(
-                          'هذه ملاحظات تقديرية. يمكنك إعادة التصوير أو متابعة البلاغ.',
-                          style: text.bodySmall?.copyWith(
-                            color: context.khota.muted(0.7),
-                          ),
-                        ),
-                      ],
-                    ),
+                      Text(
+                        'هذه ملاحظات تقديرية. يمكنك إعادة التصوير أو متابعة البلاغ.',
+                        style: text.bodySmall,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
 
-        // Sidewalk visibility confirmation.
         if (_image != null) ...[
           const SizedBox(height: 14),
           InfoCard(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Text(
                   'هل يظهر الرصيف والمشكلة في الصورة؟',
@@ -894,8 +1122,10 @@ ElevatedButton(
                   runSpacing: 8,
                   children: [
                     ChoiceChip(
-                      label: const Text('نعم، واضح'),
-                      selected: _sidewalkVisible == true,
+                      label:
+                          const Text('نعم، واضح'),
+                      selected:
+                          _sidewalkVisible == true,
                       onSelected: (_) {
                         setState(() {
                           _sidewalkVisible = true;
@@ -903,8 +1133,11 @@ ElevatedButton(
                       },
                     ),
                     ChoiceChip(
-                      label: const Text('لا، غير ظاهر'),
-                      selected: _sidewalkVisible == false,
+                      label: const Text(
+                        'لا، غير ظاهر',
+                      ),
+                      selected:
+                          _sidewalkVisible == false,
                       onSelected: (_) {
                         setState(() {
                           _sidewalkVisible = false;
@@ -951,7 +1184,9 @@ ElevatedButton(
               ),
               TextButton(
                 onPressed: _openPhotoGuide,
-                child: const Text('دليل التصوير'),
+                child: const Text(
+                  'دليل التصوير',
+                ),
               ),
             ],
           ),
@@ -960,26 +1195,39 @@ ElevatedButton(
     );
   }
 
-
-  /// Live camera inside the frame, or the placeholder when it is not usable.
   Widget _buildCameraFrame() {
     final live = _live;
     final camera = live?.camera;
-    if (live != null && live.isReady && camera != null) {
+
+    if (live != null &&
+        live.isReady &&
+        camera != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          const ColoredBox(color: Colors.black),
-          LiveCameraPreview(controller: camera),
-          IgnorePointer(child: CustomPaint(painter: _ViewfinderPainter())),
+          const ColoredBox(
+            color: Colors.black,
+          ),
+          LiveCameraPreview(
+            controller: camera,
+          ),
+          IgnorePointer(
+            child: CustomPaint(
+              painter: _ViewfinderPainter(),
+            ),
+          ),
           PositionedDirectional(
             top: 12,
             end: 12,
             child: Material(
-              color: Colors.black.withValues(alpha: 0.35),
+              color: Colors.black.withValues(
+                alpha: 0.35,
+              ),
               shape: const CircleBorder(),
               child: IconButton(
-                tooltip: live.flashOn ? 'إطفاء الإضاءة' : 'تشغيل الإضاءة',
+                tooltip: live.flashOn
+                    ? 'إطفاء الإضاءة'
+                    : 'تشغيل الإضاءة',
                 onPressed: live.toggleFlash,
                 icon: Icon(
                   live.flashOn
@@ -990,41 +1238,57 @@ ElevatedButton(
               ),
             ),
           ),
-          PositionedDirectional(
+          const PositionedDirectional(
             bottom: 14,
             start: 14,
             end: 14,
             child: Center(
               child: _Pill(
-                icon: Icons.center_focus_strong_outlined,
-                label: 'أظهر المشكلة كاملة مع ما حولها',
+                icon:
+                    Icons.center_focus_strong_outlined,
+                label:
+                    'أظهر المشكلة كاملة مع ما حولها',
               ),
             ),
           ),
         ],
       );
     }
+
     return switch (live?.status) {
-      LiveCameraStatus.starting || LiveCameraStatus.idle => const _Viewfinder(
-        message: 'جارٍ تشغيل الكاميرا…',
-        busy: true,
-      ),
-      LiveCameraStatus.denied => const _Viewfinder(
-        message: 'لا يوجد إذن لاستخدام الكاميرا.\nفعّله من الإعدادات، أو اختر صورة من المعرض.',
-      ),
+      LiveCameraStatus.starting ||
+      LiveCameraStatus.idle =>
+        const _Viewfinder(
+          message: 'جارٍ تشغيل الكاميرا…',
+          busy: true,
+        ),
+
+      LiveCameraStatus.denied =>
+        const _Viewfinder(
+          message:
+              'لا يوجد إذن لاستخدام الكاميرا.\nفعّله من الإعدادات، أو اختر صورة من المعرض.',
+        ),
+
       _ => const _Viewfinder(),
     };
   }
 
-  // ---------------------------------------------------------------- Step 2 UI
+  // ==============================================================
+  // LOCATION UI
+  // ==============================================================
 
-  Widget _buildLocationStep(BuildContext context) {
+  Widget _buildLocationStep(
+    BuildContext context,
+  ) {
     final text = Theme.of(context).textTheme;
     final muted = context.khota.muted(0.65);
+
     final map =
-        _locator.buildMap(context, _location) ?? const _MapPlaceholder();
+        _locator.buildMap(context, _location) ??
+        const _MapPlaceholder();
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      padding: const EdgeInsets.all(20),
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -1034,6 +1298,7 @@ ElevatedButton(
               fit: StackFit.expand,
               children: [
                 map,
+
                 if (_location != null)
                   PositionedDirectional(
                     top: 12,
@@ -1042,13 +1307,16 @@ ElevatedButton(
                     child: Align(
                       alignment: Alignment.topCenter,
                       child: _AddressChip(
-                        text: _address ?? 'الموقع المحدد للبلاغ',
+                        text: _placeText,
                       ),
                     ),
                   ),
+
                 if (_locating)
                   ColoredBox(
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: Colors.white.withValues(
+                      alpha: 0.6,
+                    ),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1057,11 +1325,8 @@ ElevatedButton(
                             color: context.khota.primary,
                           ),
                           const SizedBox(height: 12),
-                          Text(
-                            'جارٍ تحديد موقعك…',
-                            style: text.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                          const Text(
+                            'جارٍ تحديث موقعك…',
                           ),
                         ],
                       ),
@@ -1071,20 +1336,55 @@ ElevatedButton(
             ),
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(height: 12),
+
+        OutlinedButton.icon(
+          onPressed: _locating ? null : _locate,
+          icon: const Icon(
+            Icons.my_location_outlined,
+          ),
+          label: const Text(
+            'تحديث موقعي الحالي',
+          ),
+        ),
+
         if (_locationError != null) ...[
+          const SizedBox(height: 12),
           _ErrorBox(
             message: _locationError!,
             actionLabel: 'إعادة المحاولة',
-            onAction: _locating ? null : _locate,
+            onAction:
+                _locating ? null : _locate,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
+          Text(
+            'إذا رفضت صلاحية الموقع، يمكنك تحديد مكان البلاغ يدوياً على الخريطة.',
+            style: text.bodySmall?.copyWith(
+              color: muted,
+            ),
+          ),
         ],
-        if (_location != null)
+
+        if (_location == null &&
+            !_locating) ...[
+          const SizedBox(height: 12),
+          InfoCard(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'لم يتم تحديد الموقع بعد. استخدم GPS أو اختر الموقع يدوياً.',
+              style: text.bodySmall,
+            ),
+          ),
+        ],
+
+        if (_location != null) ...[
+          const SizedBox(height: 14),
           InfoCard(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -1103,30 +1403,62 @@ ElevatedButton(
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+
+                const SizedBox(height: 8),
+
                 Text(
                   _placeText,
-                  style: text.bodyMedium?.copyWith(color: muted),
+                  style: text.bodyMedium,
                 ),
+
+                if (_address == null &&
+                    !_addressLoading) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'تعذّر عرض اسم الشارع، لكن الموقع محدد على الخريطة.',
+                    style: text.bodySmall?.copyWith(
+                      color: muted,
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 12),
-                LocationAccuracyBadge(location: _location!),
+
+                LocationAccuracyBadge(
+                  location: _location!,
+                ),
+
+                const SizedBox(height: 10),
+
+                Text(
+                  'لتغيير النقطة، اضغط تحديد الموقع يدوياً وحرّك الخريطة.',
+                  style: text.bodySmall?.copyWith(
+                    color: muted,
+                  ),
+                ),
               ],
             ),
           ),
+        ],
       ],
     );
   }
 
-  // ---------------------------------------------------------------- Step 3 UI
+  // ==============================================================
+  // REVIEW UI
+  // ==============================================================
 
-  Widget _buildReviewStep(BuildContext context) {
+  Widget _buildReviewStep(
+    BuildContext context,
+  ) {
     final text = Theme.of(context).textTheme;
     final muted = context.khota.muted(0.65);
+
     return ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      keyboardDismissBehavior:
+          ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(20),
       children: [
-        // Photo.
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: AspectRatio(
@@ -1134,69 +1466,98 @@ ElevatedButton(
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const ColoredBox(color: Color(0xFF111413)),
+                const ColoredBox(
+                  color: Color(0xFF111413),
+                ),
+
                 if (_image != null)
                   Image.memory(
                     _image!,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.contain,
                     semanticLabel: 'صورة البلاغ',
                   ),
+
                 PositionedDirectional(
                   bottom: 12,
                   end: 12,
                   child: _EditButton(
-                    label: 'تغيير الصورة',
-                    onTap: _sending ? null : () => _goTo(1),
+                    label: 'تعديل الصورة',
+                    onTap: _sending
+                        ? null
+                        : () => _goTo(1),
                   ),
                 ),
               ],
             ),
           ),
         ),
+
         const SizedBox(height: 14),
 
-        // Location.
         InfoCard(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
-              const IconTile(icon: Icons.location_on_outlined, size: 40),
-              const SizedBox(height: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(
-                    'الموقع',
-                    style: text.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      'الموقع',
+                      style: text.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _placeText,
-                    style: text.bodyMedium?.copyWith(color: muted),
+                  _EditButton(
+                    label: 'تعديل الموقع',
+                    onTap: _sending
+                        ? null
+                        : () => _goTo(2),
                   ),
-                  if (_location != null) ...[
-                    const SizedBox(height: 8),
-                    LocationAccuracyBadge(location: _location!),
-                  ],
                 ],
               ),
-              TextButton(
-                onPressed: _sending ? null : () => _goTo(2),
-                child: const Text('تعديل'),
+
+              const SizedBox(height: 12),
+
+              Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.location_on_outlined,
+                    color: context.khota.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _placeText,
+                      style: text.bodyMedium?.copyWith(
+                        color: muted,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+
+              if (_location != null) ...[
+                const SizedBox(height: 12),
+                LocationAccuracyBadge(
+                  location: _location!,
+                ),
+              ],
             ],
           ),
         ),
+
         const SizedBox(height: 14),
 
-        // Optional details.
         InfoCard(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
@@ -1208,54 +1569,56 @@ ElevatedButton(
                       ),
                     ),
                   ),
-                  const StatusChip(label: 'اختياري', tone: StatusTone.neutral),
+                  const StatusChip(
+                    label: 'اختياري',
+                    tone: StatusTone.neutral,
+                  ),
                 ],
               ),
+
               const SizedBox(height: 10),
+
               TextField(
                 controller: _description,
                 enabled: !_sending,
                 minLines: 2,
                 maxLines: 4,
-                maxLength: ReportDraft.maxDescriptionLength,
-                textInputAction: TextInputAction.done,
+                maxLength:
+                    ReportDraft.maxDescriptionLength,
+                textInputAction:
+                    TextInputAction.done,
                 decoration: InputDecoration(
-                  labelText: 'تفاصيل إضافية (اختياري)',
+                  labelText:
+                      'تفاصيل إضافية (اختياري)',
+                  hintText:
+                      'مثال: بلاط مكسور يعيق مرور المشاة',
+                  helperText:
+                      'الحد الأقصى 500 حرف',
                   alignLabelWithHint: true,
-                  hintText: 'مثال: بلاط مكسور يعيق مرور المشاة',
                   fillColor: context.khota.surface,
                 ),
               ),
             ],
           ),
         ),
+
         const SizedBox(height: 14),
 
-        // What happens after sending.
-        Container(
+        InfoCard(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: context.khota.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: context.khota.primary.withValues(alpha: 0.35),
-            ),
-          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Icon(
                 Icons.auto_awesome_outlined,
                 color: context.khota.primary,
-                size: 22,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'بعد الإرسال، يحلّل النظام الصورة تلقائياً لتحديد نوع '
-                  'المشكلة ومستوى خطورتها.',
+                  'بعد الإرسال، يحلل النظام الصورة للمساعدة في تحديد نوع المشكلة ومستوى شدتها.',
                   style: text.bodySmall?.copyWith(
-                    color: context.khota.primary,
                     height: 1.6,
                   ),
                 ),
@@ -1263,23 +1626,28 @@ ElevatedButton(
             ],
           ),
         ),
+
         if (_sendError != null) ...[
           const SizedBox(height: 14),
-          _ErrorBox(message: _sendError!),
+          _ErrorBox(
+            message: _sendError!,
+          ),
         ],
       ],
     );
   }
 }
 
-// ======================================================================
-// Small widgets used by the flow.
-// ======================================================================
+// ==============================================================
+// REUSABLE WIDGETS
+// ==============================================================
 
-/// GPS accuracy, as recommended in the UX review: a clear label and colour,
-/// and a hint when accuracy is low.
-class LocationAccuracyBadge extends StatelessWidget {
-  const LocationAccuracyBadge({super.key, required this.location});
+class LocationAccuracyBadge
+    extends StatelessWidget {
+  const LocationAccuracyBadge({
+    super.key,
+    required this.location,
+  });
 
   final ReportLocation location;
 
@@ -1289,6 +1657,7 @@ class LocationAccuracyBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accuracy = location.accuracyMeters;
+
     final (
       IconData icon,
       String label,
@@ -1301,30 +1670,38 @@ class LocationAccuracyBadge extends StatelessWidget {
         StatusTone.info,
         null,
       ),
-      ReportLocation.sourceGps when accuracy == null => (
+
+      ReportLocation.sourceGps
+          when accuracy == null => (
         Icons.gps_fixed,
         'تم تحديده من موقعك (GPS)',
         StatusTone.success,
         null,
       ),
-      ReportLocation.sourceGps when accuracy! <= goodMeters => (
+
+      ReportLocation.sourceGps
+          when accuracy! <= goodMeters => (
         Icons.gps_fixed,
         'دقة عالية · ± ${accuracy.round()} م',
         StatusTone.success,
         null,
       ),
-      ReportLocation.sourceGps when accuracy! <= fairMeters => (
+
+      ReportLocation.sourceGps
+          when accuracy! <= fairMeters => (
         Icons.gps_not_fixed,
         'دقة متوسطة · ± ${accuracy.round()} م',
         StatusTone.progress,
         null,
       ),
+
       ReportLocation.sourceGps => (
         Icons.gps_off_outlined,
         'دقة منخفضة · ± ${accuracy!.round()} م',
         StatusTone.warning,
         'لموقع أدق، انتقل إلى مكان مفتوح أو حدّد الموقع يدوياً.',
       ),
+
       _ => (
         Icons.science_outlined,
         'موقع تجريبي مؤقت',
@@ -1332,23 +1709,40 @@ class LocationAccuracyBadge extends StatelessWidget {
         null,
       ),
     };
-    final text = Theme.of(context).textTheme;
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: context.khota.muted(0.7)),
+            Icon(
+              icon,
+              size: 16,
+              color: context.khota.muted(0.7),
+            ),
             const SizedBox(width: 6),
             Flexible(
-              child: StatusChip(label: label, tone: tone),
+              child: StatusChip(
+                label: label,
+                tone: tone,
+              ),
             ),
           ],
         ),
+
         if (hint != null) ...[
           const SizedBox(height: 6),
-          Text(hint, style: text.bodySmall?.copyWith(color: AppColors.error)),
+          Text(
+            hint,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(
+                  color: AppColors.error,
+                ),
+          ),
         ],
       ],
     );
@@ -1357,7 +1751,8 @@ class LocationAccuracyBadge extends StatelessWidget {
 
 class _Viewfinder extends StatelessWidget {
   const _Viewfinder({
-    this.message = 'وجّه الكاميرا نحو المشكلة في الرصيف',
+    this.message =
+        'وجّه الكاميرا نحو المشكلة في الرصيف',
     this.busy = false,
   });
 
@@ -1369,49 +1764,37 @@ class _Viewfinder extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF1E2522), Color(0xFF111413)],
-            ),
-          ),
+        const ColoredBox(
+          color: Color(0xFF111413),
         ),
-        CustomPaint(painter: _ViewfinderPainter()),
+        CustomPaint(
+          painter: _ViewfinderPainter(),
+        ),
         Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
+                if (busy)
+                  const CircularProgressIndicator(
+                    color: Colors.white,
+                  )
+                else
+                  const Icon(
+                    Icons.photo_camera_outlined,
+                    color: Colors.white,
+                    size: 48,
                   ),
-                  child: busy
-                      ? const CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Colors.white,
-                        )
-                      : const Icon(
-                          Icons.photo_camera_outlined,
-                          color: Colors.white,
-                          size: 36,
-                        ),
-                ),
+
                 const SizedBox(height: 14),
+
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -1423,46 +1806,39 @@ class _Viewfinder extends StatelessWidget {
   }
 }
 
-/// Round shutter button, like the system camera.
 class _ShutterButton extends StatelessWidget {
-  const _ShutterButton({required this.onPressed});
+  const _ShutterButton({
+    required this.onPressed,
+  });
 
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onPressed != null;
     return Semantics(
       button: true,
-      enabled: enabled,
+      enabled: onPressed != null,
       label: 'التقاط صورة',
       excludeSemantics: true,
       child: Tooltip(
         message: 'التقاط صورة',
         child: GestureDetector(
           onTap: onPressed,
-          child: AnimatedOpacity(
-            duration: const Duration(milliseconds: 150),
-            opacity: enabled ? 1 : 0.45,
-            child: Container(
-              width: 76,
-              height: 76,
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.ink, width: 4),
+          child: Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: AppColors.ink,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white,
+                width: 5,
               ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: AppColors.ink,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.photo_camera_outlined,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
+            ),
+            child: const Icon(
+              Icons.photo_camera_outlined,
+              color: Colors.white,
+              size: 28,
             ),
           ),
         ),
@@ -1475,153 +1851,86 @@ class _ViewfinderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.07)
+      ..color = Colors.white.withValues(
+        alpha: 0.07,
+      )
       ..strokeWidth = 1;
+
     for (var i = 1; i < 3; i++) {
       final x = size.width * i / 3;
       final y = size.height * i / 3;
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-    }
-    final corner = Paint()
-      ..color = Colors.white.withValues(alpha: 0.85)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    const m = 22.0, l = 28.0;
-    final w = size.width, h = size.height;
-    for (final (Offset a, Offset b, Offset c) in [
-      (const Offset(m, m + l), const Offset(m, m), const Offset(m + l, m)),
-      (Offset(w - m - l, m), Offset(w - m, m), Offset(w - m, m + l)),
-      (Offset(m, h - m - l), Offset(m, h - m), Offset(m + l, h - m)),
-      (
-        Offset(w - m - l, h - m),
-        Offset(w - m, h - m),
-        Offset(w - m, h - m - l),
-      ),
-    ]) {
-      canvas.drawPath(
-        Path()
-          ..moveTo(a.dx, a.dy)
-          ..lineTo(b.dx, b.dy)
-          ..lineTo(c.dx, c.dy),
-        corner,
+
+      canvas.drawLine(
+        Offset(x, 0),
+        Offset(x, size.height),
+        grid,
+      );
+
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        grid,
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(
+    covariant CustomPainter oldDelegate,
+  ) => false;
 }
 
-/// Shown until the map from the location task is connected.
 class _MapPlaceholder extends StatelessWidget {
   const _MapPlaceholder();
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        CustomPaint(painter: _MapPainter()),
-        Center(
-          child: Padding(
-            padding: EdgeInsets.only(bottom: 28),
-            child: Icon(
-              Icons.location_on,
-              size: 52,
-              color: AppColors.ink,
-              semanticLabel: 'موقع البلاغ',
-            ),
-          ),
+    return Container(
+      color: const Color(0xFFE4EBE5),
+      child: const Center(
+        child: Icon(
+          Icons.location_on,
+          size: 52,
         ),
-      ],
+      ),
     );
   }
-}
-
-class _MapPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFFE4EBE5),
-    );
-    final block = Paint()..color = const Color(0xFFD5E0D7);
-    final road = Paint()..color = const Color(0xFFF4EFE6);
-    const roadW = 22.0;
-    final cols = [0.22, 0.62];
-    final rows = [0.28, 0.66];
-    for (final c in cols) {
-      canvas.drawRect(
-        Rect.fromLTWH(size.width * c, 0, roadW, size.height),
-        road,
-      );
-    }
-    for (final r in rows) {
-      canvas.drawRect(
-        Rect.fromLTWH(0, size.height * r, size.width, roadW),
-        road,
-      );
-    }
-    final xs = [0.0, ...cols.map((c) => size.width * c + roadW), size.width];
-    final ys = [0.0, ...rows.map((r) => size.height * r + roadW), size.height];
-    for (var i = 0; i < xs.length - 1; i++) {
-      for (var j = 0; j < ys.length - 1; j++) {
-        final right = i + 1 < xs.length - 1
-            ? size.width * cols[i] - 10
-            : xs[i + 1] - 10;
-        final bottom = j + 1 < ys.length - 1
-            ? size.height * rows[j] - 10
-            : ys[j + 1] - 10;
-        final rect = Rect.fromLTRB(xs[i] + 10, ys[j] + 10, right, bottom);
-        if (rect.width > 0 && rect.height > 0) {
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(rect, const Radius.circular(8)),
-            block,
-          );
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _AddressChip extends StatelessWidget {
-  const _AddressChip({required this.text});
+  const _AddressChip({
+    required this.text,
+  });
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: context.khota.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: context.khota.outline),
-        boxShadow: [
-          BoxShadow(
-            color: context.khota.isDark
-                ? Colors.transparent
-                : AppColors.ink.withValues(alpha: 0.10),
-            blurRadius: 8,
-          ),
-        ],
+        border: Border.all(
+          color: context.khota.outline,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.place_outlined, color: context.khota.primary, size: 20),
+          Icon(
+            Icons.place_outlined,
+            color: context.khota.primary,
+          ),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
               text,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -1631,7 +1940,10 @@ class _AddressChip extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({required this.icon, required this.label});
+  const _Pill({
+    required this.icon,
+    required this.label,
+  });
 
   final IconData icon;
   final String label;
@@ -1639,19 +1951,31 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 6,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.ink.withValues(alpha: 0.85),
+        color: AppColors.ink.withValues(
+          alpha: 0.85,
+        ),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 16),
+          Icon(
+            icon,
+            size: 16,
+            color: Colors.white,
+          ),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
           ),
         ],
       ),
@@ -1660,7 +1984,10 @@ class _Pill extends StatelessWidget {
 }
 
 class _EditButton extends StatelessWidget {
-  const _EditButton({required this.label, required this.onTap});
+  const _EditButton({
+    required this.label,
+    required this.onTap,
+  });
 
   final String label;
   final VoidCallback? onTap;
@@ -1668,21 +1995,33 @@ class _EditButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.ink.withValues(alpha: 0.85),
+      color: AppColors.ink.withValues(
+        alpha: 0.85,
+      ),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 7,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.edit_outlined, color: Colors.white, size: 16),
-              const SizedBox(width: 6),
+              const Icon(
+                Icons.edit_outlined,
+                size: 15,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 5),
               Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 13),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -1693,7 +2032,11 @@ class _EditButton extends StatelessWidget {
 }
 
 class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({required this.message, this.actionLabel, this.onAction});
+  const _ErrorBox({
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
 
   final String message;
   final String? actionLabel;
@@ -1704,28 +2047,45 @@ class _ErrorBox extends StatelessWidget {
     return Semantics(
       liveRegion: true,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.08),
+          color: AppColors.error.withValues(
+            alpha: 0.08,
+          ),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+          border: Border.all(
+            color: AppColors.error.withValues(
+              alpha: 0.3,
+            ),
+          ),
         ),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: AppColors.error),
+            const Icon(
+              Icons.error_outline,
+              color: AppColors.error,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: AppColors.error),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(
+                      color: AppColors.error,
+                    ),
               ),
             ),
             if (actionLabel != null)
-              TextButton(onPressed: onAction, child: Text(actionLabel!)),
+              TextButton(
+                onPressed: onAction,
+                child: Text(actionLabel!),
+              ),
           ],
         ),
       ),
     );
   }
 }
+
