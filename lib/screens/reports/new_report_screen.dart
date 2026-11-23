@@ -998,6 +998,7 @@ class _NewReportScreenState
   // PHOTO UI
   // ==============================================================
 
+  
   Widget _buildPhotoStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
 
@@ -1019,15 +1020,13 @@ class _NewReportScreenState
                       Image.memory(
                         _image!,
                         fit: BoxFit.contain,
-                        semanticLabel:
-                            'معاينة صورة البلاغ',
+                        semanticLabel: 'معاينة صورة البلاغ',
                       ),
                       const PositionedDirectional(
                         top: 12,
                         start: 12,
                         child: _Pill(
-                          icon:
-                              Icons.visibility_outlined,
+                          icon: Icons.visibility_outlined,
                           label: 'معاينة الصورة',
                         ),
                       ),
@@ -1036,15 +1035,30 @@ class _NewReportScreenState
           ),
         ),
 
+        // Static status without an endless animation.
         if (_picking || _photoChecking) ...[
           const SizedBox(height: 12),
-          LinearProgressIndicator(
-            color: context.khota.primary,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'جارٍ تجهيز الصورة وفحص جودتها...',
-            style: text.bodySmall,
+          Semantics(
+            liveRegion: true,
+            child: InfoCard(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.image_search_outlined,
+                    color: context.khota.primary,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'جارٍ تجهيز الصورة وفحص جودتها...',
+                      style: text.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
 
@@ -1056,53 +1070,59 @@ class _NewReportScreenState
         if (_image != null &&
             _photoWarnings.isNotEmpty) ...[
           const SizedBox(height: 12),
-          InfoCard(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ملاحظات على جودة الصورة',
-                        style: text.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      for (final warning
-                          in _photoWarnings)
-                        Padding(
-                          padding:
-                              const EdgeInsets.only(
-                            bottom: 6,
-                          ),
-                          child: Text(
-                            warning,
-                            style: text.bodySmall,
-                          ),
-                        ),
-                      Text(
-                        'هذه ملاحظات تقديرية. يمكنك إعادة التصوير أو متابعة البلاغ.',
-                        style: text.bodySmall,
-                      ),
-                    ],
+          Semantics(
+            liveRegion: true,
+            child: InfoCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange,
+                    size: 24,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ملاحظات على جودة الصورة',
+                          style: text.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        for (final warning
+                            in _photoWarnings)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              bottom: 6,
+                            ),
+                            child: Text(
+                              warning,
+                              style: text.bodySmall?.copyWith(
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                        Text(
+                          'هذه ملاحظات تقديرية. يمكنك إعادة التصوير أو متابعة البلاغ.',
+                          style: text.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
 
+        // User confirmation that the sidewalk is visible.
         if (_image != null) ...[
           const SizedBox(height: 14),
           InfoCard(
@@ -1128,8 +1148,7 @@ class _NewReportScreenState
                   runSpacing: 8,
                   children: [
                     ChoiceChip(
-                      label:
-                          const Text('نعم، واضح'),
+                      label: const Text('نعم، واضح'),
                       selected:
                           _sidewalkVisible == true,
                       onSelected: (_) {
@@ -1139,9 +1158,7 @@ class _NewReportScreenState
                       },
                     ),
                     ChoiceChip(
-                      label: const Text(
-                        'لا، غير ظاهر',
-                      ),
+                      label: const Text('لا، غير ظاهر'),
                       selected:
                           _sidewalkVisible == false,
                       onSelected: (_) {
@@ -1168,8 +1185,12 @@ class _NewReportScreenState
         const SizedBox(height: 16),
 
         InfoCard(
-          padding:
-              const EdgeInsets.fromLTRB(14, 10, 8, 10),
+          padding: const EdgeInsets.fromLTRB(
+            14,
+            10,
+            8,
+            10,
+          ),
           child: Row(
             children: [
               Icon(
@@ -1190,9 +1211,7 @@ class _NewReportScreenState
               ),
               TextButton(
                 onPressed: _openPhotoGuide,
-                child: const Text(
-                  'دليل التصوير',
-                ),
+                child: const Text('دليل التصوير'),
               ),
             ],
           ),
@@ -1200,6 +1219,7 @@ class _NewReportScreenState
       ],
     );
   }
+
 
   Widget _buildCameraFrame() {
     final live = _live;
