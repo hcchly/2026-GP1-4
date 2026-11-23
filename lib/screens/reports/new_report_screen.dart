@@ -750,6 +750,7 @@ class _NewReportScreenState
     }
   }
 
+ 
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -763,7 +764,11 @@ class _NewReportScreenState
           compact: true,
           leading: _sending
               ? const SizedBox.shrink()
-              : BackButton(onPressed: _back),
+              : IconButton(
+                  tooltip: 'رجوع',
+                  icon: const BackButtonIcon(),
+                  onPressed: _back,
+                ),
         ),
         body: Column(
           children: [
@@ -771,11 +776,11 @@ class _NewReportScreenState
               title: _titles[_step - 1],
               step: _step,
             ),
-
             Expanded(
               child: AnimatedSwitcher(
-                duration:
-                    const Duration(milliseconds: 220),
+                duration: const Duration(
+                  milliseconds: 220,
+                ),
                 child: KeyedSubtree(
                   key: ValueKey(_step),
                   child: switch (_step) {
@@ -792,6 +797,7 @@ class _NewReportScreenState
       ),
     );
   }
+
 
   Widget _buildActions(BuildContext context) {
     final List<Widget> buttons;
