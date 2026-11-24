@@ -236,14 +236,16 @@ class _NewReportScreenState
       if (image != null) {
         _setSelectedPhoto(image);
       }
-    } catch (_) {
-      if (!mounted) return;
+  } catch (error) {
+  if (!mounted) return;
 
-      setState(() {
-        _photoError = gallery
+  setState(() {
+    _photoError = error is FormatException
+        ? error.message
+        : gallery
             ? 'تعذّر فتح الصور. تحقّق من إذن الوصول للصور وحاول مرة أخرى.'
             : 'تعذّر فتح الكاميرا. تحقّق من إذن الكاميرا وحاول مرة أخرى.';
-      });
+  });
     } finally {
       if (mounted) {
         setState(() => _picking = false);
@@ -1526,24 +1528,24 @@ class _NewReportScreenState
             crossAxisAlignment:
                 CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'الموقع',
-                      style: text.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  _EditButton(
-                    label: 'تعديل الموقع',
-                    onTap: _sending
-                        ? null
-                        : () => _goTo(2),
-                  ),
-                ],
-              ),
+           Wrap(
+  alignment: WrapAlignment.spaceBetween,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  spacing: 12,
+  runSpacing: 8,
+  children: [
+    Text(
+      'الموقع',
+      style: text.titleSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    _EditButton(
+      label: 'تعديل الموقع',
+      onTap: _sending ? null : () => _goTo(2),
+    ),
+  ],
+),
 
               const SizedBox(height: 12),
 
@@ -2042,13 +2044,15 @@ class _EditButton extends StatelessWidget {
                 color: Colors.white,
               ),
               const SizedBox(width: 5),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
-              ),
+           Flexible(
+  child: Text(
+    label,
+    style: const TextStyle(
+      color: Colors.white,
+      fontSize: 12,
+    ),
+  ),
+),
             ],
           ),
         ),
