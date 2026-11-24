@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
@@ -5,8 +6,7 @@ import '../../theme/khota_colors.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 
-/// Photo guide as swipeable cards (feedback 14): four short rules, one per
-/// card, each with a correct and a wrong example, instead of a long page.
+/// Photo guide: four swipeable cards with correct and wrong examples.
 class PhotoGuideScreen extends StatefulWidget {
   const PhotoGuideScreen({super.key});
 
@@ -14,34 +14,34 @@ class PhotoGuideScreen extends StatefulWidget {
     (
       'زاوية التصوير',
       'صوّر الرصيف من زاوية تُظهر الضرر كاملًا.',
-      'angle_good.jpg',
-      'angle_bad.jpg',
+      'angle_good.png',
+      'angle_bad.png',
       'زاوية واضحة تُظهر العيب.',
       'زاوية غير مناسبة تخفي العيب.',
     ),
     (
       'المسافة المناسبة',
-      'أظهر المشكلة والرصيف المحيط بها.',
-      'distance_good.jpg',
-      'distance_bad.jpg',
-      'المشكلة والمحيط ظاهران.',
-      'الصورة لا تُظهر المشكلة كاملة.',
+      'صوّر من مسافة تُظهر المشكلة وتفاصيلها بوضوح.',
+      'distance_good.png',
+      'distance_bad.png',
+      'مسافة مناسبة تُظهر التفاصيل.',
+      'الصورة بعيدة أو قريبة أكثر من اللازم.',
     ),
     (
-      'الإضاءة',
-      'تأكد من وجود إضاءة كافية دون وهج قوي.',
-      'lighting_good.jpg',
-      'lighting_bad.jpg',
-      'إضاءة مناسبة وتفاصيل واضحة.',
-      'الإضاءة تخفي تفاصيل الضرر.',
+      'الإضاءة والوضوح',
+      'صوّر بإضاءة كافية وثبّت الهاتف لتظهر التفاصيل.',
+      'lighting_good.png',
+      'lighting_bad.png',
+      'إضاءة جيدة وتفاصيل واضحة.',
+      'الإضاءة الضعيفة تخفي المشكلة.',
     ),
     (
-      'وضوح العيب',
-      'ثبّت الهاتف وركّز على الجزء المتضرر.',
-      'clarity_good.jpg',
-      'clarity_bad.jpg',
-      'صورة واضحة تُظهر التلف.',
-      'صورة مهزوزة أو غير واضحة.',
+      'إظهار المنطقة المحيطة',
+      'أظهر المشكلة والرصيف المحيط بها لتوضيح موقع الضرر.',
+      'context_good.png',
+      'context_bad.png',
+      'المشكلة والمنطقة المحيطة واضحتان.',
+      'الصورة لا تُظهر السياق المحيط بالمشكلة.',
     ),
   ];
 
@@ -90,8 +90,8 @@ class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
                 ),
               ),
             ),
-            // In RTL the PageView runs right to left, so the next card
-            // comes in from the left, as Arabic readers expect.
+
+            // Swipeable cards with RTL support.
             Expanded(
               child: PageView.builder(
                 controller: _controller,
@@ -107,20 +107,23 @@ class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
                 ),
               ),
             ),
+
             _PageDots(count: _count, current: _page),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Row(
                 children: [
-                  // "السابق": chevron_left mirrors in RTL and points right.
                   TextButton.icon(
-                    onPressed: _page == 0 ? null : () => _goTo(_page - 1),
+                    onPressed: _page == 0
+                        ? null
+                        : () => _goTo(_page - 1),
                     icon: const Icon(Icons.chevron_left_rounded),
                     label: const Text('السابق'),
                   ),
+
                   const SizedBox(width: 12),
-                  // "التالي": chevron_right mirrors in RTL and points left.
-                  // The theme gives this button full width, so it is Expanded.
+
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: isLast
@@ -138,6 +141,7 @@ class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
                 ],
               ),
             ),
+
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               child: Row(
@@ -164,7 +168,7 @@ class _PhotoGuideScreenState extends State<PhotoGuideScreen> {
   }
 }
 
-/// One rule: number, title, short description and the two examples.
+/// One photography rule with correct and wrong examples.
 class _TipCard extends StatelessWidget {
   const _TipCard({
     required this.number,
@@ -179,11 +183,11 @@ class _TipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+
     return Semantics(
       label: 'القاعدة $number من $count',
       child: InfoCard(
         padding: const EdgeInsets.all(18),
-        // Scrolls inside the card at large font sizes.
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,7 +210,9 @@ class _TipCard extends StatelessWidget {
                       ),
                     ),
                   ),
+
                   const SizedBox(width: 10),
+
                   Expanded(
                     child: Text(
                       tip.$1,
@@ -217,12 +223,29 @@ class _TipCard extends StatelessWidget {
                   ),
                 ],
               ),
+
               const SizedBox(height: 6),
-              Text(tip.$2, style: text.bodyMedium),
+
+              Text(
+                tip.$2,
+                style: text.bodyMedium,
+              ),
+
               const SizedBox(height: 14),
-              _ExampleCard(good: true, imageName: tip.$3, subtitle: tip.$5),
+
+              _ExampleCard(
+                good: true,
+                imageName: tip.$3,
+                subtitle: tip.$5,
+              ),
+
               const SizedBox(height: 12),
-              _ExampleCard(good: false, imageName: tip.$4, subtitle: tip.$6),
+
+              _ExampleCard(
+                good: false,
+                imageName: tip.$4,
+                subtitle: tip.$6,
+              ),
             ],
           ),
         ),
@@ -231,8 +254,12 @@ class _TipCard extends StatelessWidget {
   }
 }
 
+/// Page position indicators.
 class _PageDots extends StatelessWidget {
-  const _PageDots({required this.count, required this.current});
+  const _PageDots({
+    required this.count,
+    required this.current,
+  });
 
   final int count;
   final int current;
@@ -240,6 +267,7 @@ class _PageDots extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.khota;
+
     return Semantics(
       label: 'البطاقة ${current + 1} من $count',
       child: ExcludeSemantics(
@@ -253,7 +281,9 @@ class _PageDots extends StatelessWidget {
                 width: i == current ? 22 : 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: i == current ? colors.primary : colors.divider,
+                  color: i == current
+                      ? colors.primary
+                      : colors.divider,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
@@ -264,6 +294,7 @@ class _PageDots extends StatelessWidget {
   }
 }
 
+/// Displays one correct or incorrect photography example.
 class _ExampleCard extends StatelessWidget {
   const _ExampleCard({
     required this.good,
@@ -277,7 +308,10 @@ class _ExampleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = good ? context.khota.primary : AppColors.error;
+    final color = good
+        ? context.khota.primary
+        : AppColors.error;
+
     final text = Theme.of(context).textTheme;
 
     return Column(
@@ -289,15 +323,22 @@ class _ExampleCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 7,
+            ),
             child: Row(
               children: [
                 Icon(
-                  good ? Icons.check_circle_outline : Icons.cancel_outlined,
+                  good
+                      ? Icons.check_circle_outline
+                      : Icons.cancel_outlined,
                   color: color,
                   size: 20,
                 ),
+
                 const SizedBox(width: 7),
+
                 Expanded(
                   child: Text(
                     good ? 'تصوير صحيح' : 'تصوير خاطئ',
@@ -320,7 +361,10 @@ class _ExampleCard extends StatelessWidget {
             aspectRatio: 16 / 9,
             child: Image.asset(
               'assets/images/$imageName',
-              fit: BoxFit.cover,
+
+              // Show the entire image without cropping.
+              fit: BoxFit.contain,
+
               errorBuilder: (context, error, stackTrace) {
                 return Container(
                   color: context.khota.background,
@@ -341,7 +385,11 @@ class _ExampleCard extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        Text(subtitle, style: text.bodySmall, textAlign: TextAlign.center),
+        Text(
+          subtitle,
+          style: text.bodySmall,
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }
