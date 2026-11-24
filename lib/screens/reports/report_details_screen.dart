@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../models/citizen_report.dart';
+import '../../models/report_detection.dart';
 import '../../services/report_service.dart';
 import '../../theme/khota_colors.dart';
 import '../../utils/report_labels.dart';
+import '../../widgets/detection_image.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/place_name.dart';
@@ -60,7 +62,22 @@ class ReportDetailsScreen extends StatelessWidget {
                 ),
 
                 // Private image: downloaded only for its owner.
-                if (report.imageUrl != null) ...[
+                // With results, the whole image is shown with a box around
+                // every detected issue.
+                if (report.imageUrl != null &&
+                    report.detections.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: ColoredBox(
+                      color: colors.surfaceSunken,
+                      child: DetectionImage(
+                        imageRef: report.imageUrl!,
+                        detections: report.detections,
+                      ),
+                    ),
+                  ),
+                ] else if (report.imageUrl != null) ...[
                   const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
@@ -118,6 +135,11 @@ class ReportDetailsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+
+                if (report.detections.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _DetectionList(detections: report.detections),
+                ],
 
                 const SizedBox(height: 16),
                 // Image analysis and report status are two separate processes.
@@ -178,6 +200,79 @@ class _DetailRow extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row per detected issue, numbered like the boxes on the image.
+class _DetectionList extends StatelessWidget {
+  const _DetectionList({required this.detections});
+
+  final List<ReportDetection> detections;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = context.khota;
+
+    return InfoCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: Text(
+              'المشكلات المكتشفة (${detections.length})',
+              style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          for (final (i, d) in detections.indexed) ...[
+            if (i > 0) const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: detectionColor(d),
+                    child: Text(
+                      '${d.boxIndex + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          issueClassLabel(d.issueClass),
+                          style: text.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'الشدة: ${severityLabel(d.severity)} · '
+                          'الثقة: ${(d.confidence * 100).round()}%',
+                          style: text.bodySmall?.copyWith(
+                            color: colors.muted(0.65),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
