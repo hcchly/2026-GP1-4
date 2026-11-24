@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/date_format.dart';
 import '../utils/report_sort.dart';
 import '../widgets/report_status_widgets.dart';
+import 'report_detection.dart';
 
 /// One of the citizen's own reports, as shown in "بلاغاتي" and its details.
 class CitizenReport {
@@ -18,6 +19,7 @@ class CitizenReport {
     this.longitude,
     this.issueClass,
     this.severity,
+    this.detections = const [],
   });
 
   final String id;
@@ -42,6 +44,10 @@ class CitizenReport {
   /// Analysis results; null until the computer vision result is stored.
   final String? issueClass;
   final String? severity;
+
+  /// Every issue found in the image; empty until the analysis is completed
+  /// or when no target defect was found.
+  final List<ReportDetection> detections;
 
   static const noDate = 'التاريخ غير متاح';
 
@@ -128,6 +134,7 @@ class CitizenReport {
       longitude: location is GeoPoint ? location.longitude : null,
       issueClass: issueClass is String ? issueClass : null,
       severity: severity is String ? severity : null,
+      detections: ReportDetection.listFrom(data['detections']),
     );
   }
 }

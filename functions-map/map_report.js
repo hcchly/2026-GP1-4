@@ -41,10 +41,13 @@ function projectMapReport(report) {
       : null,
     severity: severity === 'severe' || severity === 'high'
       ? 'severe'
-      : ['non_severe', 'not_severe', 'low', 'medium'].includes(severity)
+      : ['non_severe', 'not_severe', 'low_medium', 'low', 'medium'].includes(severity)
         ? 'non_severe'
         : null,
     reportStatus: status,
+    detectionCount: Number.isInteger(report.detectionCount) && report.detectionCount >= 0
+      ? report.detectionCount
+      : null,
   };
 }
 
