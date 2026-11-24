@@ -57,7 +57,13 @@ void main() {
       expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text('قيد الانتظار'), findsOneWidget);
       expect(find.text('جارٍ تحليل الصورة'), findsOneWidget);
-      expect(find.text('معالجة البلاغ من الجهة المختصة'), findsOneWidget);
+      expect(find.text('مراجعة البلاغ من مسؤول النظام'), findsOneWidget);
+      expect(
+        find.text(
+          'يحلل النظام الصورة للمساعدة في تحديد نوع المشكلة ومستوى شدتها.',
+        ),
+        findsOneWidget,
+      );
       await tester.tap(
         find.text(openReports ? 'متابعة بلاغاتي' : 'العودة للرئيسية'),
       );
