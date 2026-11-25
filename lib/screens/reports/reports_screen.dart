@@ -1,3 +1,4 @@
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -8,17 +9,21 @@ import '../../theme/khota_colors.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/place_name.dart';
+import '../../widgets/report_card.dart';
 import '../../widgets/report_status_widgets.dart';
 import 'report_details_screen.dart';
 
 export '../../models/citizen_report.dart';
 
 class ReportsScreen extends StatefulWidget {
-  const ReportsScreen({super.key, this.initialPreview = false, this.reports});
+  const ReportsScreen({
+    super.key,
+    this.initialPreview = false,
+    this.reports,
+  });
 
   final bool initialPreview;
 
-  /// Overrides the signed-in citizen's reports from Firestore (tests).
   final Stream<List<CitizenReport>>? reports;
 
   @override
@@ -30,18 +35,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   late bool previewMode = widget.initialPreview;
 
-  /// Created once, so changing the filter does not restart the listener.
   late Stream<List<CitizenReport>>? _liveReports =
       widget.reports ?? ReportService.watchOwnReports();
 
   void _retryReports() {
     setState(
-      () => _liveReports = widget.reports ?? ReportService.watchOwnReports(),
+      () => _liveReports =
+          widget.reports ?? ReportService.watchOwnReports(),
     );
   }
 
-  // Demo reports are for UI preview only.
-  // They are not real citizen reports.
   static final sampleReports = <CitizenReport>[
     CitizenReport(
       id: 'DEMO-01',
@@ -73,20 +76,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
     ),
   ];
 
-  // Display the same report number used after submission.
   String displayReportNumber(String id) =>
       ReportDetailsScreen.displayNumber(id);
 
-  // Open report details on a separate page.
   void openDetails(CitizenReport report) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => ReportDetailsScreen(report: report, demo: previewMode),
+        builder: (_) => ReportDetailsScreen(
+          report: report,
+          demo: previewMode,
+        ),
       ),
     );
   }
 
-  // Activate preview mode.
   Widget previewButton() {
     return OutlinedButton.icon(
       onPressed: () {
@@ -100,24 +103,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  // Build reports according to selected filter, newest first.
   Widget buildReportList(List<CitizenReport> unsorted) {
-    final reports = [...unsorted]..sort(CitizenReport.newestFirst);
+    final reports = [...unsorted]
+      ..sort(CitizenReport.newestFirst);
 
     final filtered = selectedFilter == ReportStatusLabels.all
         ? reports
         : reports
-              .where((report) => report.reportStatus == selectedFilter)
-              .toList();
+            .where(
+              (report) => report.reportStatus == selectedFilter,
+            )
+            .toList();
 
     final counts = {
       for (final filter in ReportStatusLabels.filters)
         filter: filter == ReportStatusLabels.all
             ? reports.length
-            : reports.where((r) => r.reportStatus == filter).length,
+            : reports
+                .where((r) => r.reportStatus == filter)
+                .length,
     };
 
-    // Four filters in one sliding row: All, Pending, In Progress, Resolved.
     final filters = reports.isEmpty
         ? const SizedBox.shrink()
         : Padding(
@@ -133,7 +139,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     if (filtered.isEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [filters, _emptyState(reports)],
+        children: [
+          filters,
+          _emptyState(reports),
+        ],
       );
     }
 
@@ -145,8 +154,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
             'الأحدث أولًا',
-            style: Theme.of(context).textTheme.labelMedium
-                ?.copyWith(color: context.khota.muted(0.7)),
+            style: Theme.of(context)
+                .textTheme
+                .labelMedium
+                ?.copyWith(
+                  color: context.khota.muted(0.7),
+                ),
           ),
         ),
         _reportCards(filtered),
@@ -158,7 +171,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return InfoCard(
       child: Column(
         children: [
-          Icon(Icons.inbox_outlined, size: 48, color: context.khota.primary),
+          Icon(
+            Icons.inbox_outlined,
+            size: 48,
+            color: context.khota.primary,
+          ),
 
           const SizedBox(height: 12),
 
@@ -169,18 +186,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
 
           const SizedBox(height: 8),
+
           Text(
             reports.isEmpty
                 ? 'اضغط «بلاغ جديد» أسفل الشاشة لإرسال أول بلاغ.'
                 : 'اختَر حالة أخرى أو اعرض كل البلاغات.',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium
-                ?.copyWith(color: context.khota.muted(0.7)),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(
+                  color: context.khota.muted(0.7),
+                ),
           ),
+
           if (reports.isNotEmpty)
             TextButton(
-              onPressed: () =>
-                  setState(() => selectedFilter = ReportStatusLabels.all),
+              onPressed: () => setState(
+                () => selectedFilter = ReportStatusLabels.all,
+              ),
               child: const Text('عرض كل البلاغات'),
             ),
 
@@ -207,11 +231,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: InfoCard(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch,
                 children: [
                   Row(
                     children: [
-                      const IconTile(icon: Icons.assignment_outlined, size: 38),
+                      const IconTile(
+                        icon: Icons.assignment_outlined,
+                        size: 38,
+                      ),
+
                       const SizedBox(width: 10),
 
                       Expanded(
@@ -219,7 +248,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           'بلاغ ${displayReportNumber(report.id)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
 
@@ -241,17 +272,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                   const SizedBox(height: 10),
 
-                  // Place name and date, as on the home cards.
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined, size: 16, color: muted),
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: muted,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: PlaceName(
                           address: report.address,
                           latitude: report.latitude,
                           longitude: report.longitude,
-                          style: text.bodySmall?.copyWith(color: muted),
+                          style: text.bodySmall?.copyWith(
+                            color: muted,
+                          ),
                         ),
                       ),
                     ],
@@ -270,7 +306,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       Expanded(
                         child: Text(
                           report.dateText,
-                          style: text.labelSmall?.copyWith(color: muted),
+                          style: text.labelSmall?.copyWith(
+                            color: muted,
+                          ),
                         ),
                       ),
                     ],
@@ -278,11 +316,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                   const SizedBox(height: 16),
 
-                  ReportStatusSummary(
-                    analysisStatus: report.analysisStatus,
-                    reportStatus: report.reportStatus,
+                  // Show report status only.
+                  // Analysis status stays in Firebase.
+                  Row(
+                    children: [
+                      Text(
+                        'حالة البلاغ',
+                        style: text.bodySmall?.copyWith(
+                          color: muted,
+                        ),
+                      ),
+
+                      const SizedBox(width: 12),
+
+                      StatusChip.reportStatus(
+                        report.reportStatus,
+                      ),
+                    ],
                   ),
+
                   const SizedBox(height: 14),
+
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -322,9 +376,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           children: [
             const Text('سجّل الدخول لعرض بلاغاتك.'),
-
             const SizedBox(height: 12),
-
             if (kDebugMode) previewButton(),
           ],
         ),
@@ -356,7 +408,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
 
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
         }
 
         return buildReportList(snapshot.data!);
@@ -367,20 +421,33 @@ class _ReportsScreenState extends State<ReportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const GradientAppBar(title: 'بلاغاتي', compact: true),
+      appBar: const GradientAppBar(
+        title: 'بلاغاتي',
+        compact: true,
+      ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 96),
+          padding: const EdgeInsets.fromLTRB(
+            16,
+            24,
+            16,
+            96,
+          ),
           children: [
             if (previewMode) ...[
               InfoCard(
-                color: AppColors.tealLight.withValues(alpha: 0.18),
+                color: AppColors.tealLight.withValues(
+                  alpha: 0.18,
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
                   children: [
                     const Text(
                       'وضع المعاينة: هذه أمثلة تجريبية وليست بلاغات حقيقية.',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
 
                     TextButton(
@@ -390,7 +457,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           selectedFilter = 'الكل';
                         });
                       },
-                      child: const Text('العودة إلى بلاغاتي الحقيقية'),
+                      child: const Text(
+                        'العودة إلى بلاغاتي الحقيقية',
+                      ),
                     ),
                   ],
                 ),
@@ -407,3 +476,4 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 }
+
