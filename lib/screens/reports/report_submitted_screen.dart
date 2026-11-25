@@ -1,4 +1,5 @@
 
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -10,11 +11,8 @@ import '../../widgets/info_card.dart';
 import '../../widgets/brand_surface.dart';
 import '../../widgets/report_card.dart';
 
-/// Shown after a report has been saved: report number,
-/// two separate statuses, and the next steps.
-///
-/// Pops with true when the citizen chooses "متابعة بلاغاتي",
-/// and false when returning to the home screen.
+/// Confirmation shown after a report is saved.
+/// Only the citizen report status is displayed.
 class ReportSubmittedScreen extends StatelessWidget {
   const ReportSubmittedScreen({
     super.key,
@@ -23,8 +21,6 @@ class ReportSubmittedScreen extends StatelessWidget {
   });
 
   final SubmittedReport report;
-
-  /// Submission date shown in the summary.
   final DateTime? now;
 
   static String formatDate(DateTime date) =>
@@ -127,13 +123,15 @@ class ReportSubmittedScreen extends StatelessWidget {
                                   await Clipboard.setData(
                                     ClipboardData(text: number),
                                   );
+
                                   if (!context.mounted) return;
 
                                   ScaffoldMessenger.of(context)
                                       .showSnackBar(
                                     const SnackBar(
-                                      content:
-                                          Text('تم نسخ رقم البلاغ'),
+                                      content: Text(
+                                        'تم نسخ رقم البلاغ',
+                                      ),
                                     ),
                                   );
                                 },
@@ -183,26 +181,24 @@ class ReportSubmittedScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+
                         const SizedBox(height: 8),
+
                         Text(
                           formatDate(now ?? DateTime.now()),
                           style: text.bodySmall?.copyWith(
                             color: muted,
                           ),
                         ),
+
                         const Divider(height: 24),
 
+                        // Report status only.
+                        // AI analysis status remains internal.
                         _SummaryRow(
                           label: 'حالة البلاغ',
-                          child: StatusChip.reportStatus('pending'),
-                        ),
-
-                        const SizedBox(height: 10),
-
-                        const _SummaryRow(
-                          label: 'تحليل الصورة',
-                          child: AnalysisStatusLine(
-                            status: 'processing',
+                          child: StatusChip.reportStatus(
+                            'pending',
                           ),
                         ),
                       ],
@@ -245,7 +241,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                           number: 3,
                           title: 'المتابعة',
                           body:
-                              'تابع حالة تحليل الصورة وحالة البلاغ من «بلاغاتي».',
+                              'يمكنك متابعة حالة بلاغك والاطلاع على تفاصيله من «بلاغاتي».',
                           isLast: true,
                         ),
                       ],
@@ -400,4 +396,3 @@ class _NextStep extends StatelessWidget {
     );
   }
 }
-
