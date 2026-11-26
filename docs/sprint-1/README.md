@@ -1,7 +1,7 @@
 # Sprint 1
 
 **Dates:** 27 Sep – 25 Oct 2026
-**Code snapshot:** tag [`sprint-1`](https://github.com/hcchly/Khota/tree/sprint-1)
+**Code snapshot:** tag [`sprint-1`](https://github.com/hcchly/2026-GP1-4/tree/sprint-1)
 **Review event:** Midterm review, 25 Oct 2026
 
 ## Delivered in the app
