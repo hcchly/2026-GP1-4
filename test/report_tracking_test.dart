@@ -225,21 +225,44 @@ void main() {
       expect(find.text('حي الملقا'), findsOneWidget);
       expect(find.text('تضرر سطح الرصيف'), findsOneWidget);
       expect(find.text('عالية'), findsOneWidget);
-      // Analysis and report status are shown separately.
       expect(find.text('حالة تحليل الصورة'), findsOneWidget);
-      expect(find.text('اكتمل تحليل الصورة'), findsOneWidget);
+      expect(find.text(ReportStatusLabels.analysisCompleted), findsOneWidget);
       expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text(ReportStatusLabels.resolved), findsOneWidget);
     });
 
-    testWidgets('shows "unspecified" before the analysis result exists', (
+    testWidgets(
+      'shows processing instead of results before analysis completes',
+      (tester) async {
+        await tester.pumpWidget(host(ReportDetailsScreen(report: newest)));
+        await tester.pumpAndSettle();
+        expect(find.text(ReportStatusLabels.analyzing), findsOneWidget);
+        expect(find.text('نوع المشكلة'), findsNothing);
+        expect(find.text('الشدة'), findsNothing);
+        expect(find.text(unknownIssueClass), findsNothing);
+        expect(find.text(unknownSeverity), findsNothing);
+        expect(find.text(CitizenReport.noDate), findsNothing);
+      },
+    );
+
+    testWidgets('shows analysis failure instead of issue results', (
       tester,
     ) async {
-      await tester.pumpWidget(host(ReportDetailsScreen(report: newest)));
+      final failed = CitizenReport(
+        id: 'dddddddd000000000004',
+        description: 'بلاغ تعذّر تحليله',
+        reportStatus: ReportStatusLabels.pending,
+        analysisStatus: ReportStatusLabels.analysisFailed,
+      );
+
+      await tester.pumpWidget(host(ReportDetailsScreen(report: failed)));
       await tester.pumpAndSettle();
-      expect(find.text(unknownIssueClass), findsOneWidget);
-      expect(find.text(unknownSeverity), findsOneWidget);
-      expect(find.text(CitizenReport.noDate), findsNothing);
+
+      expect(find.text(ReportStatusLabels.analysisFailed), findsOneWidget);
+      expect(find.text('نوع المشكلة'), findsNothing);
+      expect(find.text('الشدة'), findsNothing);
+      expect(find.text(unknownIssueClass), findsNothing);
+      expect(find.text(unknownSeverity), findsNothing);
     });
 
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {

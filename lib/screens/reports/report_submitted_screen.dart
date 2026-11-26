@@ -10,6 +10,8 @@ import '../../theme/khota_colors.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/brand_surface.dart';
 import '../../widgets/report_card.dart';
+import '../../widgets/report_explanation_icon.dart';
+import '../../widgets/report_status_widgets.dart';
 
 /// Confirmation shown after a report is saved.
 /// Only the citizen report status is displayed.
@@ -197,6 +199,9 @@ class ReportSubmittedScreen extends StatelessWidget {
                         // AI analysis status remains internal.
                         _SummaryRow(
                           label: 'حالة البلاغ',
+                          info: const ReportInfoIcon.status(
+                            value: ReportStatusLabels.pending,
+                          ),
                           child: StatusChip.reportStatus(
                             'pending',
                           ),
@@ -294,24 +299,31 @@ class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.label,
     required this.child,
+    this.info,
   });
 
   final String label;
   final Widget child;
+  final Widget? info;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(
-                color: context.khota.muted(0.65),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: context.khota.muted(0.65)),
               ),
+            ),
+            ?info,
+          ],
         ),
         const SizedBox(height: 6),
         child,

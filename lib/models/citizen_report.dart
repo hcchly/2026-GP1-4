@@ -93,11 +93,11 @@ class CitizenReport {
     }
 
     if (s == 'completed' || s == 'done') {
-      return 'اكتمل تحليل الصورة';
+      return ReportStatusLabels.analysisCompleted;
     }
 
     if (s == 'failed' || s == 'not_assessable' || s == 'notassessable') {
-      return 'تعذّر تحليل الصورة';
+      return ReportStatusLabels.analysisFailed;
     }
 
     return 'حالة التحليل غير متاحة';

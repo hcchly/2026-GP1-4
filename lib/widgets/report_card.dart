@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../theme/khota_colors.dart';
 import 'report_status_widgets.dart';
+import 'report_explanation_icon.dart';
 import 'place_name.dart';
 import 'private_report_image.dart';
 
@@ -21,12 +22,18 @@ class StatusChip extends StatelessWidget {
     super.key,
     required this.label,
     required this.tone,
+    this.showInfo = false,
   });
 
   final String label;
   final StatusTone tone;
+  final bool showInfo;
 
-  factory StatusChip.reportStatus(String status, {Key? key}) {
+  factory StatusChip.reportStatus(
+    String status, {
+    Key? key,
+    bool showInfo = false,
+  }) {
     switch (status.trim().toLowerCase()) {
       case 'in_progress':
       case 'inprogress':
@@ -36,6 +43,7 @@ class StatusChip extends StatelessWidget {
           key: key,
           label: 'قيد التنفيذ',
           tone: StatusTone.progress,
+          showInfo: showInfo,
         );
       case 'resolved':
       case ReportStatusLabels.resolved:
@@ -43,12 +51,14 @@ class StatusChip extends StatelessWidget {
           key: key,
           label: ReportStatusLabels.resolved,
           tone: StatusTone.success,
+          showInfo: showInfo,
         );
       default:
         return StatusChip(
           key: key,
           label: ReportStatusLabels.pending,
           tone: StatusTone.pending,
+          showInfo: showInfo,
         );
     }
   }
@@ -100,7 +110,7 @@ class StatusChip extends StatelessWidget {
     final (background, foreground) =
         _colors(context.khota);
 
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(
         horizontal: 10,
         vertical: 4,
@@ -117,6 +127,11 @@ class StatusChip extends StatelessWidget {
           fontWeight: FontWeight.w700,
         ),
       ),
+    );
+    if (!showInfo) return chip;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [chip, ReportInfoIcon.status(value: label)],
     );
   }
 }
@@ -283,7 +298,7 @@ class ReportSummaryCard extends StatelessWidget {
 
                   const SizedBox(width: 8),
 
-                  StatusChip.reportStatus(reportStatus),
+                  StatusChip.reportStatus(reportStatus, showInfo: true),
                 ],
               ),
 

@@ -11,6 +11,7 @@ import '../../theme/khota_colors.dart';
 import '../../utils/report_labels.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/report_map_marker.dart';
+import '../../widgets/report_explanation_icon.dart';
 import '../../widgets/report_status_widgets.dart';
 
 class ReportsMapScreen extends StatefulWidget {
@@ -163,7 +164,13 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                     Icons.priority_high_rounded,
                     color: context.khota.primary,
                   ),
-                  title: const Text('الشدة'),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('الشدة'),
+                      ReportInfoIcon.severity(value: report.severity),
+                    ],
+                  ),
                   subtitle: Text(severity),
                 ),
                 ListTile(
@@ -172,7 +179,13 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                     Icons.assignment_outlined,
                     color: context.khota.primary,
                   ),
-                  title: const Text('حالة البلاغ'),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('حالة البلاغ'),
+                      ReportInfoIcon.status(value: report.reportStatus),
+                    ],
+                  ),
                   subtitle: Text(status),
                 ),
               ],

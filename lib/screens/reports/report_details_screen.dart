@@ -9,6 +9,7 @@ import '../../widgets/detection_image.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/place_name.dart';
+import '../../widgets/report_explanation_icon.dart';
 import '../../widgets/private_report_image.dart';
 import '../../widgets/report_status_widgets.dart';
 
@@ -33,6 +34,8 @@ class ReportDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final colors = context.khota;
+    final analysisCompleted =
+        report.analysisStatus == ReportStatusLabels.analysisCompleted;
 
     return Scaffold(
       appBar: const GradientAppBar(title: 'تفاصيل البلاغ'),
@@ -61,23 +64,7 @@ class ReportDetailsScreen extends StatelessWidget {
                   ),
                 ),
 
-                // Private image: downloaded only for its owner.
-                // With results, the whole image is shown with a box around
-                // every detected issue.
-                if (report.imageUrl != null &&
-                    report.detections.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: ColoredBox(
-                      color: colors.surfaceSunken,
-                      child: DetectionImage(
-                        imageRef: report.imageUrl!,
-                        detections: report.detections,
-                      ),
-                    ),
-                  ),
-                ] else if (report.imageUrl != null) ...[
+                if (report.imageUrl != null) ...[
                   const SizedBox(height: 16),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
@@ -94,7 +81,6 @@ class ReportDetailsScreen extends StatelessWidget {
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 16),
                 InfoCard(
                   padding: const EdgeInsets.symmetric(
@@ -120,18 +106,21 @@ class ReportDetailsScreen extends StatelessWidget {
                           maxLines: 3,
                         ),
                       ),
-                      const Divider(height: 1),
-                      _DetailRow(
-                        icon: Icons.category_outlined,
-                        label: 'نوع المشكلة',
-                        child: Text(issueClassLabel(report.issueClass)),
-                      ),
-                      const Divider(height: 1),
-                      _DetailRow(
-                        icon: Icons.speed_outlined,
-                        label: 'الشدة',
-                        child: Text(severityLabel(report.severity)),
-                      ),
+                      if (analysisCompleted) ...[
+                        const Divider(height: 1),
+                        _DetailRow(
+                          icon: Icons.category_outlined,
+                          label: 'نوع المشكلة',
+                          child: Text(issueClassLabel(report.issueClass)),
+                        ),
+                        const Divider(height: 1),
+                        _DetailRow(
+                          icon: Icons.speed_outlined,
+                          label: 'الشدة',
+                          info: ReportInfoIcon.severity(value: report.severity),
+                          child: Text(severityLabel(report.severity)),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -166,11 +155,13 @@ class _DetailRow extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.child,
+    this.info,
   });
 
   final IconData icon;
   final String label;
   final Widget child;
+  final Widget? info;
 
   @override
   Widget build(BuildContext context) {
@@ -188,9 +179,16 @@ class _DetailRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: text.bodySmall?.copyWith(color: colors.muted(0.65)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: text.bodySmall?.copyWith(color: colors.muted(0.65)),
+                      ),
+                    ),
+                    ?info,
+                  ],
                 ),
                 const SizedBox(height: 2),
                 DefaultTextStyle.merge(
@@ -207,6 +205,7 @@ class _DetailRow extends StatelessWidget {
 }
 
 /// One row per detected issue, numbered like the boxes on the image.
+/// Shows each detected issue class once, with its original severity color.
 class _DetectionList extends StatelessWidget {
   const _DetectionList({required this.detections});
 
@@ -215,7 +214,17 @@ class _DetectionList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final colors = context.khota;
+
+    final uniqueIssues = <String, ReportDetection>{};
+    for (final d in detections) {
+      final existing = uniqueIssues[d.issueClass];
+      if (existing == null ||
+          (!isSevere(existing.severity) && isSevere(d.severity))) {
+        uniqueIssues[d.issueClass] = d;
+      }
+    }
+
+    final issues = uniqueIssues.entries.toList();
 
     return InfoCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -225,48 +234,34 @@ class _DetectionList extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 10, bottom: 4),
             child: Text(
-              'المشكلات المكتشفة (${detections.length})',
+              'المشكلات المكتشفة (${issues.length})',
               style: text.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
           ),
-          for (final (i, d) in detections.indexed) ...[
+          for (final (i, entry) in issues.indexed) ...[
             if (i > 0) const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 13,
-                    backgroundColor: detectionColor(d),
-                    child: Text(
-                      '${d.boxIndex + 1}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    radius: 16,
+                    backgroundColor: detectionColor(entry.value),
+                    child: Icon(
+                      isSevere(entry.value.severity)
+                          ? Icons.warning_amber_rounded
+                          : Icons.info_outline_rounded,
+                      color: Colors.white,
+                      size: 19,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          issueClassLabel(d.issueClass),
-                          style: text.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'الشدة: ${severityLabel(d.severity)} · '
-                          'الثقة: ${(d.confidence * 100).round()}%',
-                          style: text.bodySmall?.copyWith(
-                            color: colors.muted(0.65),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      issueClassLabel(entry.key),
+                      style: text.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],

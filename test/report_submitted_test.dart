@@ -56,7 +56,16 @@ void main() {
       // Report status and image analysis are shown separately.
       expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text('قيد الانتظار'), findsOneWidget);
-      expect(find.text('جارٍ تحليل الصورة'), findsOneWidget);
+      await tester.tap(find.byTooltip('معلومات عن حالة البلاغ: قيد الانتظار'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('تم استلام بلاغك، وهو بانتظار المراجعة أو المعالجة.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('إغلاق'));
+      await tester.pumpAndSettle();
+      // Analysis status is internal; the confirmation shows report status only.
+      expect(find.text('جارٍ تحليل الصورة'), findsNothing);
       expect(find.text('مراجعة البلاغ من مسؤول النظام'), findsOneWidget);
       expect(
         find.text(
