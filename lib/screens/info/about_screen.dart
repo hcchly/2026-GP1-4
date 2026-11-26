@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_colors.dart';
@@ -24,9 +25,12 @@ class AboutScreen extends StatelessWidget {
         children: [
           BrandSurface(
             alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 22,
+              vertical: 18,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 204),
+              constraints: const BoxConstraints(minHeight: 164),
               child: SizedBox(
                 width: double.infinity,
                 child: Column(
@@ -40,13 +44,13 @@ class AboutScreen extends StatelessWidget {
                       ),
                       child: Image.asset(
                         'assets/images/khota_mark_mist.png',
-                        width: 76,
-                        height: 56,
+                        width: 68,
+                        height: 48,
                         fit: BoxFit.contain,
                         excludeFromSemantics: true,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Text(
                       'خُطى',
                       textAlign: TextAlign.center,
@@ -59,7 +63,9 @@ class AboutScreen extends StatelessWidget {
                     Text(
                       'أرصفة أفضل تبدأ بخطوة',
                       textAlign: TextAlign.center,
-                      style: text.titleMedium?.copyWith(color: AppColors.mist),
+                      style: text.titleMedium?.copyWith(
+                        color: AppColors.mist,
+                      ),
                     ),
                   ],
                 ),
@@ -93,7 +99,10 @@ class AboutScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const IconTile(icon: Icons.insights_outlined, size: 40),
+                    const IconTile(
+                      icon: Icons.insights_outlined,
+                      size: 40,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -119,13 +128,17 @@ class AboutScreen extends StatelessWidget {
           Text(
             'مشروع تخرج · جامعة الملك سعود',
             textAlign: TextAlign.center,
-            style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: text.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             'الإصدار ١٫٠٫٠',
             textAlign: TextAlign.center,
-            style: text.bodySmall?.copyWith(color: context.khota.muted(0.62)),
+            style: text.bodySmall?.copyWith(
+              color: context.khota.muted(0.62),
+            ),
           ),
         ],
       ),
