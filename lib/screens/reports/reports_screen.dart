@@ -63,7 +63,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       createdAt: DateTime(2026, 11, 5),
       address: 'حي النرجس، شارع أنس بن مالك',
       issueClass: 'curb_ramp_issue',
-      severity: 'non_severe',
+      severity: 'low_medium',
     ),
     CitizenReport(
       id: 'DEMO-03',
@@ -73,7 +73,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       createdAt: DateTime(2026, 10, 20),
       address: 'حي الملقا، طريق الأمير محمد بن سعد',
       issueClass: 'surface_damage',
-      severity: 'severe',
+      severity: 'high',
     ),
   ];
 

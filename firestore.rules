@@ -73,8 +73,7 @@ service cloud.firestore {
           && data.description is string
           && data.description.size() <= 500
           && data.location is latlng
-          // 'temporary' is allowed only until the GPS step is connected.
-          && data.locationSource in ['gps', 'manual', 'temporary']
+          && data.locationSource in ['gps', 'manual']
           && (data.locationAccuracyMeters == null
               || (data.locationAccuracyMeters is number
                   && data.locationAccuracyMeters >= 0))
