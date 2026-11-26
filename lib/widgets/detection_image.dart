@@ -4,12 +4,11 @@ import 'package:flutter/material.dart';
 
 import '../models/report_detection.dart';
 import '../services/storage_service.dart';
-import '../theme/app_colors.dart';
 import '../utils/report_labels.dart';
 
-/// Colour of a detection box: red for high severity, amber otherwise.
+/// Detection colors follow severity: high red, medium orange, low neutral.
 Color detectionColor(ReportDetection detection) =>
-    isSevere(detection.severity) ? AppColors.error : AppColors.amber;
+    severityColor(detection.severity);
 
 /// The private report image with a numbered box around every detected issue.
 /// The whole image is shown (not cropped) so the boxes line up with it.
@@ -155,9 +154,7 @@ class _DetectionPainter extends CustomPainter {
       )..layout();
       final tag = Rect.fromLTWH(
         rect.left,
-        rect.top - label.height - 4 < 0
-            ? 0.0
-            : rect.top - label.height - 4,
+        rect.top - label.height - 4 < 0 ? 0.0 : rect.top - label.height - 4,
         label.width + 8,
         label.height + 4,
       );

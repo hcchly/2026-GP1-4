@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -48,30 +47,29 @@ class NewReportScreen extends StatefulWidget {
   static const saveTimeout = Duration(seconds: 15);
 
   @override
-  State<NewReportScreen> createState() =>
-      _NewReportScreenState();
+  State<NewReportScreen> createState() => _NewReportScreenState();
 }
 
-class _NewReportScreenState
-    extends State<NewReportScreen>
+class _NewReportScreenState extends State<NewReportScreen>
     with WidgetsBindingObserver {
   late final ReportCameraService _camera =
       widget.camera ?? ImagePickerReportCamera();
 
   late final ReportLocationProvider _locator =
-      widget.locationProvider ??
-      const GpsReportLocationProvider();
+      widget.locationProvider ?? const GpsReportLocationProvider();
 
   LiveCameraController? _live;
 
-  late final TextEditingController _description =
-      TextEditingController(
+  late final TextEditingController _description = TextEditingController(
     text: widget.initialDraft?.description ?? '',
   );
 
   int _step = 1;
 
   // Step 1: Photo
+  late final ScrollController _photoScrollController;
+  bool _showPhotoScrollCue = false;
+  bool _photoScrollCueDismissed = false;
   Uint8List? _image;
   String? _imageUrl;
   bool _picking = false;
@@ -95,16 +93,14 @@ class _NewReportScreenState
   String? _sendError;
   String? _reportId;
 
-  static const _titles = [
-    'التقاط الصورة',
-    'تأكيد الموقع',
-    'مراجعة وإرسال',
-  ];
+  static const _titles = ['التقاط الصورة', 'تأكيد الموقع', 'مراجعة وإرسال'];
 
   @override
   void initState() {
     super.initState();
 
+    _photoScrollController = ScrollController()
+      ..addListener(_updatePhotoScrollCue);
     _image = widget.initialDraft?.imageBytes;
     _imageUrl = widget.initialDraft?.imageUrl;
 
@@ -117,14 +113,11 @@ class _NewReportScreenState
     _recoverLostPhoto();
 
     if (widget.camera == null) {
-      _live = LiveCameraController()
-        ..addListener(_onLiveChanged);
+      _live = LiveCameraController()..addListener(_onLiveChanged);
 
       WidgetsBinding.instance.addObserver(this);
 
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _syncCamera(),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncCamera());
     }
   }
 
@@ -136,14 +129,13 @@ class _NewReportScreenState
 
     _live?.removeListener(_onLiveChanged);
     _live?.dispose();
+    _photoScrollController.dispose();
     _description.dispose();
     super.dispose();
   }
 
   @override
-  void didChangeAppLifecycleState(
-    AppLifecycleState state,
-  ) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _syncCamera();
     } else if (state == AppLifecycleState.paused ||
@@ -168,9 +160,7 @@ class _NewReportScreenState
     final live = _live;
     if (live == null || !mounted) return;
 
-    if (_step == 1 &&
-        _image == null &&
-        !_sending) {
+    if (_step == 1 && _image == null && !_sending) {
       live.start();
     } else {
       live.stop();
@@ -184,9 +174,7 @@ class _NewReportScreenState
   Future<void> _shoot() async {
     final live = _live;
 
-    if (live == null ||
-        !live.isReady ||
-        _picking) {
+    if (live == null || !live.isReady || _picking) {
       return;
     }
 
@@ -206,8 +194,7 @@ class _NewReportScreenState
       if (!mounted) return;
 
       setState(() {
-        _photoError =
-            'تعذّر التقاط الصورة. حاول مرة أخرى.';
+        _photoError = 'تعذّر التقاط الصورة. حاول مرة أخرى.';
       });
     } finally {
       if (mounted) {
@@ -218,9 +205,7 @@ class _NewReportScreenState
     }
   }
 
-  Future<void> _pickPhoto({
-    required bool gallery,
-  }) async {
+  Future<void> _pickPhoto({required bool gallery}) async {
     setState(() {
       _picking = true;
       _photoError = null;
@@ -236,16 +221,16 @@ class _NewReportScreenState
       if (image != null) {
         _setSelectedPhoto(image);
       }
-  } catch (error) {
-  if (!mounted) return;
+    } catch (error) {
+      if (!mounted) return;
 
-  setState(() {
-    _photoError = error is FormatException
-        ? error.message
-        : gallery
+      setState(() {
+        _photoError = error is FormatException
+            ? error.message
+            : gallery
             ? 'تعذّر فتح الصور. تحقّق من إذن الوصول للصور وحاول مرة أخرى.'
             : 'تعذّر فتح الكاميرا. تحقّق من إذن الكاميرا وحاول مرة أخرى.';
-  });
+      });
     } finally {
       if (mounted) {
         setState(() => _picking = false);
@@ -269,8 +254,10 @@ class _NewReportScreenState
 
   void _setSelectedPhoto(Uint8List image) {
     _photoCheckRequest++;
+    _photoScrollCueDismissed = false;
 
     setState(() {
+      _showPhotoScrollCue = false;
       _image = image;
       _imageUrl = null;
       _photoError = null;
@@ -284,9 +271,7 @@ class _NewReportScreenState
     _syncCamera();
   }
 
-  Future<void> _checkPhotoQuality(
-    Uint8List bytes,
-  ) async {
+  Future<void> _checkPhotoQuality(Uint8List bytes) async {
     final request = ++_photoCheckRequest;
 
     setState(() {
@@ -302,18 +287,13 @@ class _NewReportScreenState
     ui.Image? decodedImage;
 
     try {
-      buffer =
-          await ui.ImmutableBuffer.fromUint8List(bytes);
+      buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
 
-      descriptor =
-          await ui.ImageDescriptor.encoded(buffer);
+      descriptor = await ui.ImageDescriptor.encoded(buffer);
 
       // Small image warning.
-      if (descriptor.width < 640 ||
-          descriptor.height < 480) {
-        warnings.add(
-          'دقة الصورة منخفضة. يُفضّل اختيار صورة أكبر وأوضح.',
-        );
+      if (descriptor.width < 640 || descriptor.height < 480) {
+        warnings.add('دقة الصورة منخفضة. يُفضّل اختيار صورة أكبر وأوضح.');
       }
 
       codec = await descriptor.instantiateCodec(
@@ -352,17 +332,13 @@ class _NewReportScreenState
             final green = pixels[index + 1];
             final blue = pixels[index + 2];
 
-            final brightness =
-                (red * 0.299) +
-                (green * 0.587) +
-                (blue * 0.114);
+            final brightness = (red * 0.299) + (green * 0.587) + (blue * 0.114);
 
             brightnessSum += brightness;
             count++;
 
             if (previous != null) {
-              edgeSum +=
-                  (brightness - previous).abs();
+              edgeSum += (brightness - previous).abs();
               edgeCount++;
             }
 
@@ -370,33 +346,24 @@ class _NewReportScreenState
           }
         }
 
-        final averageBrightness = count == 0
-            ? 0.0
-            : brightnessSum / count;
+        final averageBrightness = count == 0 ? 0.0 : brightnessSum / count;
 
-        final averageEdge = edgeCount == 0
-            ? 0.0
-            : edgeSum / edgeCount;
+        final averageEdge = edgeCount == 0 ? 0.0 : edgeSum / edgeCount;
 
         // Heuristic lighting warning.
         if (averageBrightness < 65) {
-          warnings.add(
-            'تبدو الصورة مظلمة. حاول التصوير في إضاءة أفضل.',
-          );
+          warnings.add('تبدو الصورة مظلمة. حاول التصوير في إضاءة أفضل.');
         }
 
         // Heuristic clarity warning.
-        if (averageBrightness >= 65 &&
-            averageEdge < 4.5) {
+        if (averageBrightness >= 65 && averageEdge < 4.5) {
           warnings.add(
             'قد تكون الصورة غير واضحة أو مهزوزة. تأكّد من وضوح تفاصيل الرصيف.',
           );
         }
       }
     } catch (error) {
-      debugPrint(
-        '[Khota photo] Quality check failed: $error',
-      );
+      debugPrint('[Khota photo] Quality check failed: $error');
     } finally {
       decodedImage?.dispose();
       codec?.dispose();
@@ -436,11 +403,8 @@ class _NewReportScreenState
   }
 
   void _openPhotoGuide() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const PhotoGuideScreen(),
-      ),
-    );
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const PhotoGuideScreen()));
   }
 
   // ==============================================================
@@ -458,8 +422,7 @@ class _NewReportScreenState
     try {
       final location = await _locator.currentLocation();
 
-      if (!mounted ||
-          request != _locationRequest) {
+      if (!mounted || request != _locationRequest) {
         return;
       }
 
@@ -477,12 +440,9 @@ class _NewReportScreenState
         _addressLoading = true;
       });
 
-      final address = await _locator.addressFor(
-        location,
-      );
+      final address = await _locator.addressFor(location);
 
-      if (!mounted ||
-          request != _locationRequest) {
+      if (!mounted || request != _locationRequest) {
         return;
       }
 
@@ -491,12 +451,9 @@ class _NewReportScreenState
         _addressLoading = false;
       });
     } catch (error) {
-      debugPrint(
-        '[Khota location] GPS error: $error',
-      );
+      debugPrint('[Khota location] GPS error: $error');
 
-      if (!mounted ||
-          request != _locationRequest) {
+      if (!mounted || request != _locationRequest) {
         return;
       }
 
@@ -506,8 +463,7 @@ class _NewReportScreenState
         _addressLoading = false;
       });
     } finally {
-      if (mounted &&
-          request == _locationRequest) {
+      if (mounted && request == _locationRequest) {
         setState(() {
           _locating = false;
           _addressLoading = false;
@@ -517,8 +473,7 @@ class _NewReportScreenState
   }
 
   String get _placeText {
-    if (_address != null &&
-        _address!.trim().isNotEmpty) {
+    if (_address != null && _address!.trim().isNotEmpty) {
       return _address!;
     }
 
@@ -533,20 +488,14 @@ class _NewReportScreenState
     ReportLocation? picked;
 
     try {
-      picked = await _locator.pickManually(
-        context,
-        _location,
-      );
+      picked = await _locator.pickManually(context, _location);
     } catch (error) {
-      debugPrint(
-        '[Khota location] Manual picker error: $error',
-      );
+      debugPrint('[Khota location] Manual picker error: $error');
 
       if (!mounted) return;
 
       setState(() {
-        _locationError =
-            'تعذّر فتح الخريطة. حاول مرة أخرى.';
+        _locationError = 'تعذّر فتح الخريطة. حاول مرة أخرى.';
       });
 
       return;
@@ -555,14 +504,9 @@ class _NewReportScreenState
     if (!mounted) return;
 
     if (picked == null) {
-      if (_locator
-          is TemporaryReportLocationProvider) {
+      if (_locator is TemporaryReportLocationProvider) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'تحديد الموقع يدوياً سيتوفر قريباً.',
-            ),
-          ),
+          const SnackBar(content: Text('تحديد الموقع يدوياً سيتوفر قريباً.')),
         );
       }
       return;
@@ -579,12 +523,9 @@ class _NewReportScreenState
     });
 
     try {
-      final address = await _locator.addressFor(
-        picked,
-      );
+      final address = await _locator.addressFor(picked);
 
-      if (!mounted ||
-          request != _locationRequest) {
+      if (!mounted || request != _locationRequest) {
         return;
       }
 
@@ -592,12 +533,9 @@ class _NewReportScreenState
         _address = address;
       });
     } catch (error) {
-      debugPrint(
-        '[Khota location] Address error: $error',
-      );
+      debugPrint('[Khota location] Address error: $error');
     } finally {
-      if (mounted &&
-          request == _locationRequest) {
+      if (mounted && request == _locationRequest) {
         setState(() {
           _addressLoading = false;
         });
@@ -631,21 +569,15 @@ class _NewReportScreenState
     var stage = 'upload';
 
     try {
-      _imageUrl ??= await (
-        widget.uploadImage ??
-        StorageService().uploadImage
-      )(_image!).timeout(
-        NewReportScreen.uploadTimeout,
-      );
+      _imageUrl ??= await (widget.uploadImage ?? StorageService().uploadImage)(
+        _image!,
+      ).timeout(NewReportScreen.uploadTimeout);
 
       stage = 'save';
 
       _reportId ??= ReportService.generateId();
 
-      await (
-        widget.submitReport ??
-        ReportService().submit
-      )(
+      await (widget.submitReport ?? ReportService().submit)(
         _reportId!,
         ReportDraft(
           imageBytes: _image!,
@@ -653,9 +585,7 @@ class _NewReportScreenState
           imageUrl: _imageUrl,
         ),
         _location!.withAddress(_address),
-      ).timeout(
-        NewReportScreen.saveTimeout,
-      );
+      ).timeout(NewReportScreen.saveTimeout);
 
       stopwatch.stop();
 
@@ -687,10 +617,7 @@ class _NewReportScreenState
     }
   }
 
-  String _messageFor(
-    Object error,
-    String stage,
-  ) {
+  String _messageFor(Object error, String stage) {
     if (error is StateError) {
       return error.message;
     }
@@ -703,7 +630,8 @@ class _NewReportScreenState
       return 'استغرق الإرسال وقتاً أطول من المتوقع. تحقّق من الاتصال وحاول مرة أخرى.';
     }
 
-    final denied = error is FirebaseException &&
+    final denied =
+        error is FirebaseException &&
         [
           'unauthorized',
           'unauthenticated',
@@ -732,9 +660,7 @@ class _NewReportScreenState
 
     _syncCamera();
 
-    if (step == 2 &&
-        _location == null &&
-        !_locating) {
+    if (step == 2 && _location == null && !_locating) {
       _locate();
     }
   }
@@ -752,7 +678,6 @@ class _NewReportScreenState
     }
   }
 
- 
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -774,15 +699,10 @@ class _NewReportScreenState
         ),
         body: Column(
           children: [
-            ReportStepIndicator(
-              title: _titles[_step - 1],
-              step: _step,
-            ),
+            ReportStepIndicator(title: _titles[_step - 1], step: _step),
             Expanded(
               child: AnimatedSwitcher(
-                duration: const Duration(
-                  milliseconds: 220,
-                ),
+                duration: const Duration(milliseconds: 220),
                 child: KeyedSubtree(
                   key: ValueKey(_step),
                   child: switch (_step) {
@@ -800,7 +720,6 @@ class _NewReportScreenState
     );
   }
 
-
   Widget _buildActions(BuildContext context) {
     final List<Widget> buttons;
 
@@ -810,53 +729,36 @@ class _NewReportScreenState
           buttons = [
             Center(
               child: _ShutterButton(
-                onPressed: _live!.isReady && !_picking
-                    ? _shoot
-                    : null,
+                onPressed: _live!.isReady && !_picking ? _shoot : null,
               ),
             ),
             const SizedBox(height: 6),
             TextButton.icon(
-              onPressed: _picking
-                  ? null
-                  : () => _pickPhoto(gallery: true),
-              icon: const Icon(
-                Icons.photo_library_outlined,
-                size: 20,
-              ),
+              onPressed: _picking ? null : () => _pickPhoto(gallery: true),
+              icon: const Icon(Icons.photo_library_outlined, size: 20),
               label: const Text('اختيار من المعرض'),
             ),
           ];
         } else if (_image == null) {
           buttons = [
             ElevatedButton.icon(
-              onPressed: _picking
-                  ? null
-                  : () => _pickPhoto(gallery: false),
-              icon: const Icon(
-                Icons.photo_camera_outlined,
-              ),
+              onPressed: _picking ? null : () => _pickPhoto(gallery: false),
+              icon: const Icon(Icons.photo_camera_outlined),
               label: const Text('التقاط صورة'),
             ),
 
             const SizedBox(height: 10),
 
             OutlinedButton.icon(
-              onPressed: _picking
-                  ? null
-                  : () => _pickPhoto(gallery: true),
-              icon: const Icon(
-                Icons.photo_library_outlined,
-              ),
+              onPressed: _picking ? null : () => _pickPhoto(gallery: true),
+              icon: const Icon(Icons.photo_library_outlined),
               label: const Text('اختيار من المعرض'),
             ),
           ];
         } else {
           buttons = [
             ElevatedButton(
-              onPressed: _picking ||
-                      _photoChecking ||
-                      _sidewalkVisible != true
+              onPressed: _picking || _photoChecking || _sidewalkVisible != true
                   ? null
                   : () => _goTo(2),
               child: const Text('استخدام الصورة'),
@@ -868,12 +770,8 @@ class _NewReportScreenState
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed:
-                        _picking ? null : _retake,
-                    icon: const Icon(
-                      Icons.refresh_rounded,
-                      size: 20,
-                    ),
+                    onPressed: _picking ? null : _retake,
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
                     label: const Text('إعادة التصوير'),
                   ),
                 ),
@@ -884,13 +782,8 @@ class _NewReportScreenState
                   child: OutlinedButton.icon(
                     onPressed: _picking
                         ? null
-                        : () => _pickPhoto(
-                              gallery: true,
-                            ),
-                    icon: const Icon(
-                      Icons.photo_library_outlined,
-                      size: 20,
-                    ),
+                        : () => _pickPhoto(gallery: true),
+                    icon: const Icon(Icons.photo_library_outlined, size: 20),
                     label: const Text('من المعرض'),
                   ),
                 ),
@@ -903,22 +796,14 @@ class _NewReportScreenState
       case 2:
         buttons = [
           ElevatedButton(
-            onPressed:
-                _location == null || _locating
-                    ? null
-                    : () => _goTo(3),
+            onPressed: _location == null || _locating ? null : () => _goTo(3),
             child: const Text('تأكيد الموقع'),
           ),
           const SizedBox(height: 4),
           TextButton.icon(
             onPressed: _pickManually,
-            icon: const Icon(
-              Icons.edit_location_alt_outlined,
-              size: 20,
-            ),
-            label: const Text(
-              'تحديد الموقع يدوياً',
-            ),
+            icon: const Icon(Icons.edit_location_alt_outlined, size: 20),
+            label: const Text('تحديد الموقع يدوياً'),
           ),
         ];
         break;
@@ -940,16 +825,10 @@ class _NewReportScreenState
                         ),
                       ),
                       const SizedBox(width: 10),
-                      const Text(
-                        'جارٍ إرسال البلاغ…',
-                      ),
+                      const Text('جارٍ إرسال البلاغ…'),
                     ],
                   )
-                : Text(
-                    _failedOnce
-                        ? 'إعادة المحاولة'
-                        : 'إرسال البلاغ',
-                  ),
+                : Text(_failedOnce ? 'إعادة المحاولة' : 'إرسال البلاغ'),
           ),
         ];
     }
@@ -957,20 +836,13 @@ class _NewReportScreenState
     return Container(
       decoration: BoxDecoration(
         color: context.khota.surface,
-        borderRadius:
-            const BorderRadius.vertical(
-          top: Radius.circular(26),
-        ),
-        border: Border.all(
-          color: context.khota.divider,
-        ),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        border: Border.all(color: context.khota.divider),
         boxShadow: [
           BoxShadow(
             color: context.khota.isDark
                 ? Colors.transparent
-                : AppColors.ink.withValues(
-                    alpha: 0.08,
-                  ),
+                : AppColors.ink.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, -2),
           ),
@@ -979,16 +851,10 @@ class _NewReportScreenState
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            14,
-            20,
-            12,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: buttons,
           ),
         ),
@@ -1000,11 +866,29 @@ class _NewReportScreenState
   // PHOTO UI
   // ==============================================================
 
-  
+  void _updatePhotoScrollCue() {
+    if (!mounted || !_photoScrollController.hasClients) return;
+    final position = _photoScrollController.position;
+    if (position.pixels > 16) _photoScrollCueDismissed = true;
+    final shouldShow =
+        _step == 1 &&
+        _image != null &&
+        !_photoScrollCueDismissed &&
+        position.maxScrollExtent > 24 &&
+        position.pixels <= 16;
+    if (_showPhotoScrollCue != shouldShow) {
+      setState(() => _showPhotoScrollCue = shouldShow);
+    }
+  }
+
   Widget _buildPhotoStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _updatePhotoScrollCue(),
+    );
 
     return ListView(
+      controller: _photoScrollController,
       padding: const EdgeInsets.all(20),
       children: [
         AspectRatio(
@@ -1016,9 +900,7 @@ class _NewReportScreenState
                 : Stack(
                     fit: StackFit.expand,
                     children: [
-                      const ColoredBox(
-                        color: Color(0xFF111413),
-                      ),
+                      const ColoredBox(color: Color(0xFF111413)),
                       Image.memory(
                         _image!,
                         fit: BoxFit.contain,
@@ -1069,16 +951,14 @@ class _NewReportScreenState
           _ErrorBox(message: _photoError!),
         ],
 
-        if (_image != null &&
-            _photoWarnings.isNotEmpty) ...[
+        if (_image != null && _photoWarnings.isNotEmpty) ...[
           const SizedBox(height: 12),
           Semantics(
             liveRegion: true,
             child: InfoCard(
               padding: const EdgeInsets.all(14),
               child: Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Icon(
                     Icons.warning_amber_rounded,
@@ -1088,8 +968,7 @@ class _NewReportScreenState
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'ملاحظات على جودة الصورة',
@@ -1098,17 +977,12 @@ class _NewReportScreenState
                           ),
                         ),
                         const SizedBox(height: 8),
-                        for (final warning
-                            in _photoWarnings)
+                        for (final warning in _photoWarnings)
                           Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: 6,
-                            ),
+                            padding: const EdgeInsets.only(bottom: 6),
                             child: Text(
                               warning,
-                              style: text.bodySmall?.copyWith(
-                                height: 1.6,
-                              ),
+                              style: text.bodySmall?.copyWith(height: 1.6),
                             ),
                           ),
                         Text(
@@ -1124,20 +998,47 @@ class _NewReportScreenState
           ),
         ],
 
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 180),
+          child: _showPhotoScrollCue && _image != null
+              ? Padding(
+                  key: const ValueKey('photo-scroll-cue'),
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: context.khota.muted(0.65),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'اسحب للأسفل لمراجعة السؤال والخيارات',
+                          textAlign: TextAlign.center,
+                          style: text.bodySmall?.copyWith(
+                            color: context.khota.muted(0.65),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('photo-scroll-cue-hidden')),
+        ),
+
         // User confirmation that the sidewalk is visible.
         if (_image != null) ...[
           const SizedBox(height: 14),
           InfoCard(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'هل يظهر الرصيف والمشكلة في الصورة؟',
-                  style: text.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -1151,8 +1052,7 @@ class _NewReportScreenState
                   children: [
                     ChoiceChip(
                       label: const Text('نعم، واضح'),
-                      selected:
-                          _sidewalkVisible == true,
+                      selected: _sidewalkVisible == true,
                       onSelected: (_) {
                         setState(() {
                           _sidewalkVisible = true;
@@ -1161,8 +1061,7 @@ class _NewReportScreenState
                     ),
                     ChoiceChip(
                       label: const Text('لا، غير ظاهر'),
-                      selected:
-                          _sidewalkVisible == false,
+                      selected: _sidewalkVisible == false,
                       onSelected: (_) {
                         setState(() {
                           _sidewalkVisible = false;
@@ -1178,8 +1077,7 @@ class _NewReportScreenState
           if (_sidewalkVisible == false) ...[
             const SizedBox(height: 12),
             const _ErrorBox(
-              message:
-                  'يجب أن يظهر الرصيف والمشكلة بوضوح. أعد التصوير أو اختر صورة أخرى.',
+              message: 'يجب أن يظهر الرصيف والمشكلة بوضوح. أعد التصوير أو اختر صورة أخرى.',
             ),
           ],
         ],
@@ -1187,12 +1085,7 @@ class _NewReportScreenState
         const SizedBox(height: 16),
 
         InfoCard(
-          padding: const EdgeInsets.fromLTRB(
-            14,
-            10,
-            8,
-            10,
-          ),
+          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
           child: Row(
             children: [
               Icon(
@@ -1206,9 +1099,7 @@ class _NewReportScreenState
                   _image == null
                       ? 'صوّر المشكلة بوضوح مع إظهار ما حولها.'
                       : 'تأكّد أن المشكلة ظاهرة كاملة والصورة غير مهزوزة.',
-                  style: text.bodySmall?.copyWith(
-                    height: 1.6,
-                  ),
+                  style: text.bodySmall?.copyWith(height: 1.6),
                 ),
               ),
               TextButton(
@@ -1222,40 +1113,25 @@ class _NewReportScreenState
     );
   }
 
-
   Widget _buildCameraFrame() {
     final live = _live;
     final camera = live?.camera;
 
-    if (live != null &&
-        live.isReady &&
-        camera != null) {
+    if (live != null && live.isReady && camera != null) {
       return Stack(
         fit: StackFit.expand,
         children: [
-          const ColoredBox(
-            color: Colors.black,
-          ),
-          LiveCameraPreview(
-            controller: camera,
-          ),
-          IgnorePointer(
-            child: CustomPaint(
-              painter: _ViewfinderPainter(),
-            ),
-          ),
+          const ColoredBox(color: Colors.black),
+          LiveCameraPreview(controller: camera),
+          IgnorePointer(child: CustomPaint(painter: _ViewfinderPainter())),
           PositionedDirectional(
             top: 12,
             end: 12,
             child: Material(
-              color: Colors.black.withValues(
-                alpha: 0.35,
-              ),
+              color: Colors.black.withValues(alpha: 0.35),
               shape: const CircleBorder(),
               child: IconButton(
-                tooltip: live.flashOn
-                    ? 'إطفاء الإضاءة'
-                    : 'تشغيل الإضاءة',
+                tooltip: live.flashOn ? 'إطفاء الإضاءة' : 'تشغيل الإضاءة',
                 onPressed: live.toggleFlash,
                 icon: Icon(
                   live.flashOn
@@ -1272,10 +1148,8 @@ class _NewReportScreenState
             end: 14,
             child: Center(
               child: _Pill(
-                icon:
-                    Icons.center_focus_strong_outlined,
-                label:
-                    'أظهر المشكلة كاملة مع ما حولها',
+                icon: Icons.center_focus_strong_outlined,
+                label: 'أظهر المشكلة كاملة مع ما حولها',
               ),
             ),
           ),
@@ -1284,18 +1158,14 @@ class _NewReportScreenState
     }
 
     return switch (live?.status) {
-      LiveCameraStatus.starting ||
-      LiveCameraStatus.idle =>
-        const _Viewfinder(
-          message: 'جارٍ تشغيل الكاميرا…',
-          busy: true,
-        ),
+      LiveCameraStatus.starting || LiveCameraStatus.idle => const _Viewfinder(
+        message: 'جارٍ تشغيل الكاميرا…',
+        busy: true,
+      ),
 
-      LiveCameraStatus.denied =>
-        const _Viewfinder(
-          message:
-              'لا يوجد إذن لاستخدام الكاميرا.\nفعّله من الإعدادات، أو اختر صورة من المعرض.',
-        ),
+      LiveCameraStatus.denied => const _Viewfinder(
+        message: 'لا يوجد إذن لاستخدام الكاميرا.\nفعّله من الإعدادات، أو اختر صورة من المعرض.',
+      ),
 
       _ => const _Viewfinder(),
     };
@@ -1305,15 +1175,12 @@ class _NewReportScreenState
   // LOCATION UI
   // ==============================================================
 
-  Widget _buildLocationStep(
-    BuildContext context,
-  ) {
+  Widget _buildLocationStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final muted = context.khota.muted(0.65);
 
     final map =
-        _locator.buildMap(context, _location) ??
-        const _MapPlaceholder();
+        _locator.buildMap(context, _location) ?? const _MapPlaceholder();
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -1334,17 +1201,13 @@ class _NewReportScreenState
                     end: 12,
                     child: Align(
                       alignment: Alignment.topCenter,
-                      child: _AddressChip(
-                        text: _placeText,
-                      ),
+                      child: _AddressChip(text: _placeText),
                     ),
                   ),
 
                 if (_locating)
                   ColoredBox(
-                    color: Colors.white.withValues(
-                      alpha: 0.6,
-                    ),
+                    color: Colors.white.withValues(alpha: 0.6),
                     child: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -1353,9 +1216,7 @@ class _NewReportScreenState
                             color: context.khota.primary,
                           ),
                           const SizedBox(height: 12),
-                          const Text(
-                            'جارٍ تحديث موقعك…',
-                          ),
+                          const Text('جارٍ تحديث موقعك…'),
                         ],
                       ),
                     ),
@@ -1369,12 +1230,8 @@ class _NewReportScreenState
 
         OutlinedButton.icon(
           onPressed: _locating ? null : _locate,
-          icon: const Icon(
-            Icons.my_location_outlined,
-          ),
-          label: const Text(
-            'تحديث موقعي الحالي',
-          ),
+          icon: const Icon(Icons.my_location_outlined),
+          label: const Text('تحديث موقعي الحالي'),
         ),
 
         if (_locationError != null) ...[
@@ -1382,20 +1239,16 @@ class _NewReportScreenState
           _ErrorBox(
             message: _locationError!,
             actionLabel: 'إعادة المحاولة',
-            onAction:
-                _locating ? null : _locate,
+            onAction: _locating ? null : _locate,
           ),
           const SizedBox(height: 6),
           Text(
             'إذا رفضت صلاحية الموقع، يمكنك تحديد مكان البلاغ يدوياً على الخريطة.',
-            style: text.bodySmall?.copyWith(
-              color: muted,
-            ),
+            style: text.bodySmall?.copyWith(color: muted),
           ),
         ],
 
-        if (_location == null &&
-            !_locating) ...[
+        if (_location == null && !_locating) ...[
           const SizedBox(height: 12),
           InfoCard(
             padding: const EdgeInsets.all(16),
@@ -1411,8 +1264,7 @@ class _NewReportScreenState
           InfoCard(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
@@ -1434,35 +1286,25 @@ class _NewReportScreenState
 
                 const SizedBox(height: 8),
 
-                Text(
-                  _placeText,
-                  style: text.bodyMedium,
-                ),
+                Text(_placeText, style: text.bodyMedium),
 
-                if (_address == null &&
-                    !_addressLoading) ...[
+                if (_address == null && !_addressLoading) ...[
                   const SizedBox(height: 6),
                   Text(
                     'تعذّر عرض اسم الشارع، لكن الموقع محدد على الخريطة.',
-                    style: text.bodySmall?.copyWith(
-                      color: muted,
-                    ),
+                    style: text.bodySmall?.copyWith(color: muted),
                   ),
                 ],
 
                 const SizedBox(height: 12),
 
-                LocationAccuracyBadge(
-                  location: _location!,
-                ),
+                LocationAccuracyBadge(location: _location!),
 
                 const SizedBox(height: 10),
 
                 Text(
                   'لتغيير النقطة، اضغط تحديد الموقع يدوياً وحرّك الخريطة.',
-                  style: text.bodySmall?.copyWith(
-                    color: muted,
-                  ),
+                  style: text.bodySmall?.copyWith(color: muted),
                 ),
               ],
             ),
@@ -1476,15 +1318,12 @@ class _NewReportScreenState
   // REVIEW UI
   // ==============================================================
 
-  Widget _buildReviewStep(
-    BuildContext context,
-  ) {
+  Widget _buildReviewStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final muted = context.khota.muted(0.65);
 
     return ListView(
-      keyboardDismissBehavior:
-          ScrollViewKeyboardDismissBehavior.onDrag,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.all(20),
       children: [
         ClipRRect(
@@ -1494,9 +1333,7 @@ class _NewReportScreenState
             child: Stack(
               fit: StackFit.expand,
               children: [
-                const ColoredBox(
-                  color: Color(0xFF111413),
-                ),
+                const ColoredBox(color: Color(0xFF111413)),
 
                 if (_image != null)
                   Image.memory(
@@ -1510,9 +1347,7 @@ class _NewReportScreenState
                   end: 12,
                   child: _EditButton(
                     label: 'تعديل الصورة',
-                    onTap: _sending
-                        ? null
-                        : () => _goTo(1),
+                    onTap: _sending ? null : () => _goTo(1),
                   ),
                 ),
               ],
@@ -1525,33 +1360,31 @@ class _NewReportScreenState
         InfoCard(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-           Wrap(
-  alignment: WrapAlignment.spaceBetween,
-  crossAxisAlignment: WrapCrossAlignment.center,
-  spacing: 12,
-  runSpacing: 8,
-  children: [
-    Text(
-      'الموقع',
-      style: text.titleSmall?.copyWith(
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-    _EditButton(
-      label: 'تعديل الموقع',
-      onTap: _sending ? null : () => _goTo(2),
-    ),
-  ],
-),
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  Text(
+                    'الموقع',
+                    style: text.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  _EditButton(
+                    label: 'تعديل الموقع',
+                    onTap: _sending ? null : () => _goTo(2),
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 12),
 
               Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
                     Icons.location_on_outlined,
@@ -1561,9 +1394,7 @@ class _NewReportScreenState
                   Expanded(
                     child: Text(
                       _placeText,
-                      style: text.bodyMedium?.copyWith(
-                        color: muted,
-                      ),
+                      style: text.bodyMedium?.copyWith(color: muted),
                     ),
                   ),
                 ],
@@ -1571,9 +1402,7 @@ class _NewReportScreenState
 
               if (_location != null) ...[
                 const SizedBox(height: 12),
-                LocationAccuracyBadge(
-                  location: _location!,
-                ),
+                LocationAccuracyBadge(location: _location!),
               ],
             ],
           ),
@@ -1584,8 +1413,7 @@ class _NewReportScreenState
         InfoCard(
           padding: const EdgeInsets.all(16),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
@@ -1597,10 +1425,7 @@ class _NewReportScreenState
                       ),
                     ),
                   ),
-                  const StatusChip(
-                    label: 'اختياري',
-                    tone: StatusTone.neutral,
-                  ),
+                  const StatusChip(label: 'اختياري', tone: StatusTone.neutral),
                 ],
               ),
 
@@ -1611,17 +1436,12 @@ class _NewReportScreenState
                 enabled: !_sending,
                 minLines: 2,
                 maxLines: 4,
-                maxLength:
-                    ReportDraft.maxDescriptionLength,
-                textInputAction:
-                    TextInputAction.done,
+                maxLength: ReportDraft.maxDescriptionLength,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
-                  labelText:
-                      'تفاصيل إضافية (اختياري)',
-                  hintText:
-                      'مثال: بلاط مكسور يعيق مرور المشاة',
-                  helperText:
-                      'الحد الأقصى 500 حرف',
+                  labelText: 'تفاصيل إضافية (اختياري)',
+                  hintText: 'مثال: بلاط مكسور يعيق مرور المشاة',
+                  helperText: 'الحد الأقصى 500 حرف',
                   alignLabelWithHint: true,
                   fillColor: context.khota.surface,
                 ),
@@ -1635,20 +1455,14 @@ class _NewReportScreenState
         InfoCard(
           padding: const EdgeInsets.all(14),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.auto_awesome_outlined,
-                color: context.khota.primary,
-              ),
+              Icon(Icons.auto_awesome_outlined, color: context.khota.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'بعد الإرسال، يحلل النظام الصورة للمساعدة في تحديد نوع المشكلة ومستوى شدتها.',
-                  style: text.bodySmall?.copyWith(
-                    height: 1.6,
-                  ),
+                  style: text.bodySmall?.copyWith(height: 1.6),
                 ),
               ),
             ],
@@ -1657,9 +1471,7 @@ class _NewReportScreenState
 
         if (_sendError != null) ...[
           const SizedBox(height: 14),
-          _ErrorBox(
-            message: _sendError!,
-          ),
+          _ErrorBox(message: _sendError!),
         ],
       ],
     );
@@ -1670,12 +1482,8 @@ class _NewReportScreenState
 // REUSABLE WIDGETS
 // ==============================================================
 
-class LocationAccuracyBadge
-    extends StatelessWidget {
-  const LocationAccuracyBadge({
-    super.key,
-    required this.location,
-  });
+class LocationAccuracyBadge extends StatelessWidget {
+  const LocationAccuracyBadge({super.key, required this.location});
 
   final ReportLocation location;
 
@@ -1699,24 +1507,21 @@ class LocationAccuracyBadge
         null,
       ),
 
-      ReportLocation.sourceGps
-          when accuracy == null => (
+      ReportLocation.sourceGps when accuracy == null => (
         Icons.gps_fixed,
         'تم تحديده من موقعك (GPS)',
         StatusTone.success,
         null,
       ),
 
-      ReportLocation.sourceGps
-          when accuracy! <= goodMeters => (
+      ReportLocation.sourceGps when accuracy! <= goodMeters => (
         Icons.gps_fixed,
         'دقة عالية · ± ${accuracy.round()} م',
         StatusTone.success,
         null,
       ),
 
-      ReportLocation.sourceGps
-          when accuracy! <= fairMeters => (
+      ReportLocation.sourceGps when accuracy! <= fairMeters => (
         Icons.gps_not_fixed,
         'دقة متوسطة · ± ${accuracy.round()} م',
         StatusTone.progress,
@@ -1739,23 +1544,15 @@ class LocationAccuracyBadge
     };
 
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: context.khota.muted(0.7),
-            ),
+            Icon(icon, size: 16, color: context.khota.muted(0.7)),
             const SizedBox(width: 6),
             Flexible(
-              child: StatusChip(
-                label: label,
-                tone: tone,
-              ),
+              child: StatusChip(label: label, tone: tone),
             ),
           ],
         ),
@@ -1764,12 +1561,8 @@ class LocationAccuracyBadge
           const SizedBox(height: 6),
           Text(
             hint,
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(
-                  color: AppColors.error,
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: AppColors.error),
           ),
         ],
       ],
@@ -1779,8 +1572,7 @@ class LocationAccuracyBadge
 
 class _Viewfinder extends StatelessWidget {
   const _Viewfinder({
-    this.message =
-        'وجّه الكاميرا نحو المشكلة في الرصيف',
+    this.message = 'وجّه الكاميرا نحو المشكلة في الرصيف',
     this.busy = false,
   });
 
@@ -1792,12 +1584,8 @@ class _Viewfinder extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(
-          color: Color(0xFF111413),
-        ),
-        CustomPaint(
-          painter: _ViewfinderPainter(),
-        ),
+        const ColoredBox(color: Color(0xFF111413)),
+        CustomPaint(painter: _ViewfinderPainter()),
         Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -1805,9 +1593,7 @@ class _Viewfinder extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (busy)
-                  const CircularProgressIndicator(
-                    color: Colors.white,
-                  )
+                  const CircularProgressIndicator(color: Colors.white)
                 else
                   const Icon(
                     Icons.photo_camera_outlined,
@@ -1820,10 +1606,7 @@ class _Viewfinder extends StatelessWidget {
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                 ),
               ],
             ),
@@ -1835,9 +1618,7 @@ class _Viewfinder extends StatelessWidget {
 }
 
 class _ShutterButton extends StatelessWidget {
-  const _ShutterButton({
-    required this.onPressed,
-  });
+  const _ShutterButton({required this.onPressed});
 
   final VoidCallback? onPressed;
 
@@ -1858,10 +1639,7 @@ class _ShutterButton extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.ink,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 5,
-              ),
+              border: Border.all(color: Colors.white, width: 5),
             ),
             child: const Icon(
               Icons.photo_camera_outlined,
@@ -1879,33 +1657,21 @@ class _ViewfinderPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final grid = Paint()
-      ..color = Colors.white.withValues(
-        alpha: 0.07,
-      )
+      ..color = Colors.white.withValues(alpha: 0.07)
       ..strokeWidth = 1;
 
     for (var i = 1; i < 3; i++) {
       final x = size.width * i / 3;
       final y = size.height * i / 3;
 
-      canvas.drawLine(
-        Offset(x, 0),
-        Offset(x, size.height),
-        grid,
-      );
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
 
-      canvas.drawLine(
-        Offset(0, y),
-        Offset(size.width, y),
-        grid,
-      );
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
   }
 
   @override
-  bool shouldRepaint(
-    covariant CustomPainter oldDelegate,
-  ) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _MapPlaceholder extends StatelessWidget {
@@ -1915,51 +1681,32 @@ class _MapPlaceholder extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFFE4EBE5),
-      child: const Center(
-        child: Icon(
-          Icons.location_on,
-          size: 52,
-        ),
-      ),
+      child: const Center(child: Icon(Icons.location_on, size: 52)),
     );
   }
 }
 
 class _AddressChip extends StatelessWidget {
-  const _AddressChip({
-    required this.text,
-  });
+  const _AddressChip({required this.text});
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 10,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: context.khota.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: context.khota.outline,
-        ),
+        border: Border.all(color: context.khota.outline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.place_outlined,
-            color: context.khota.primary,
-          ),
+          Icon(Icons.place_outlined, color: context.khota.primary),
           const SizedBox(width: 6),
           Flexible(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+            child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -1968,10 +1715,7 @@ class _AddressChip extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill({
-    required this.icon,
-    required this.label,
-  });
+  const _Pill({required this.icon, required this.label});
 
   final IconData icon;
   final String label;
@@ -1979,31 +1723,19 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.ink.withValues(
-          alpha: 0.85,
-        ),
+        color: AppColors.ink.withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: Colors.white,
-          ),
+          Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white, fontSize: 12),
           ),
         ],
       ),
@@ -2012,10 +1744,7 @@ class _Pill extends StatelessWidget {
 }
 
 class _EditButton extends StatelessWidget {
-  const _EditButton({
-    required this.label,
-    required this.onTap,
-  });
+  const _EditButton({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback? onTap;
@@ -2023,36 +1752,24 @@ class _EditButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.ink.withValues(
-        alpha: 0.85,
-      ),
+      color: AppColors.ink.withValues(alpha: 0.85),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 7,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.edit_outlined,
-                size: 15,
-                color: Colors.white,
-              ),
+              const Icon(Icons.edit_outlined, size: 15, color: Colors.white),
               const SizedBox(width: 5),
-           Flexible(
-  child: Text(
-    label,
-    style: const TextStyle(
-      color: Colors.white,
-      fontSize: 12,
-    ),
-  ),
-),
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 12),
+                ),
+              ),
             ],
           ),
         ),
@@ -2062,11 +1779,7 @@ class _EditButton extends StatelessWidget {
 }
 
 class _ErrorBox extends StatelessWidget {
-  const _ErrorBox({
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _ErrorBox({required this.message, this.actionLabel, this.onAction});
 
   final String message;
   final String? actionLabel;
@@ -2079,43 +1792,26 @@ class _ErrorBox extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(
-            alpha: 0.08,
-          ),
+          color: AppColors.error.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: AppColors.error.withValues(
-              alpha: 0.3,
-            ),
-          ),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.error_outline,
-              color: AppColors.error,
-            ),
+            const Icon(Icons.error_outline, color: AppColors.error),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
-                      color: AppColors.error,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: AppColors.error),
               ),
             ),
             if (actionLabel != null)
-              TextButton(
-                onPressed: onAction,
-                child: Text(actionLabel!),
-              ),
+              TextButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ),
       ),
     );
   }
 }
-

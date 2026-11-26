@@ -13,7 +13,7 @@ void main() {
   });
 
   for (final openReports in [true, false]) {
-    testWidgets('shows number, two statuses and next steps; '
+    testWidgets('shows report number, citizen status and next steps; '
         'openReports=$openReports', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -51,9 +51,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('تم استلام بلاغك'), findsOneWidget);
       expect(find.text('KHT-ABCD12EF'), findsOneWidget);
+      expect(find.byType(SelectableText), findsNothing);
+      expect(find.byIcon(Icons.copy_rounded), findsNothing);
+      expect(find.text('احتفظ برقم البلاغ لمتابعته لاحقاً.'), findsNothing);
       expect(find.text('حي النرجس'), findsOneWidget);
       expect(find.text('18 أكتوبر 2026'), findsOneWidget);
-      // Report status and image analysis are shown separately.
+      // Only citizen-facing report status is shown on confirmation.
+      expect(find.text('حالة تحليل الصورة'), findsNothing);
       expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text('قيد الانتظار'), findsOneWidget);
       await tester.tap(find.byTooltip('معلومات عن حالة البلاغ: قيد الانتظار'));

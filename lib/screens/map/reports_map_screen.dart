@@ -161,8 +161,11 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
-                    Icons.priority_high_rounded,
-                    color: context.khota.primary,
+                    isSevere(report.severity) ||
+                            isMediumSeverity(report.severity)
+                        ? Icons.warning_amber_rounded
+                        : Icons.speed_outlined,
+                    color: severityColor(report.severity),
                   ),
                   title: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -171,13 +174,19 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                       ReportInfoIcon.severity(value: report.severity),
                     ],
                   ),
-                  subtitle: Text(severity),
+                  subtitle: Text(
+                    severity,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: severityColor(report.severity),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(
                     Icons.assignment_outlined,
-                    color: context.khota.primary,
+                    color: context.khota.mutedText,
                   ),
                   title: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -186,7 +195,11 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
                       ReportInfoIcon.status(value: report.reportStatus),
                     ],
                   ),
-                  subtitle: Text(status),
+                  subtitle: Text(
+                    status,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: context.khota.muted(0.75)),
+                  ),
                 ),
               ],
             ),
@@ -203,7 +216,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
       point: report.point,
       width: 48,
       height: 48,
-      // Coloured by report status; warning icon and red border when severe.
+      // Marker color and warning icon communicate severity only.
       child: ReportMapMarker(
         reportStatus: report.reportStatus,
         severity: report.severity,

@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,17 +14,12 @@ import '../../widgets/report_status_widgets.dart';
 /// Confirmation shown after a report is saved.
 /// Only the citizen report status is displayed.
 class ReportSubmittedScreen extends StatelessWidget {
-  const ReportSubmittedScreen({
-    super.key,
-    required this.report,
-    this.now,
-  });
+  const ReportSubmittedScreen({super.key, required this.report, this.now});
 
   final SubmittedReport report;
   final DateTime? now;
 
-  static String formatDate(DateTime date) =>
-      formatArabicDate(date);
+  static String formatDate(DateTime date) => formatArabicDate(date);
 
   @override
   Widget build(BuildContext context) {
@@ -42,12 +35,7 @@ class ReportSubmittedScreen extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 560),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(
-                  20,
-                  36,
-                  20,
-                  24,
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 36, 20, 24),
                 children: [
                   // Success confirmation
                   Semantics(
@@ -64,8 +52,9 @@ class ReportSubmittedScreen extends StatelessWidget {
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: context.khota.primary
-                                      .withValues(alpha: 0.35),
+                                  color: context.khota.primary.withValues(
+                                    alpha: 0.35,
+                                  ),
                                   blurRadius: 24,
                                   offset: const Offset(0, 8),
                                 ),
@@ -98,13 +87,13 @@ class ReportSubmittedScreen extends StatelessWidget {
 
                           // Report number
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Flexible(
-                                child: SelectableText(
+                                child: Text(
                                   number,
                                   textDirection: TextDirection.ltr,
+                                  textAlign: TextAlign.center,
                                   style: text.titleMedium?.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w800,
@@ -112,41 +101,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              IconButton(
-                                tooltip: 'نسخ رقم البلاغ',
-                                visualDensity:
-                                    VisualDensity.compact,
-                                icon: const Icon(
-                                  Icons.copy_rounded,
-                                  size: 20,
-                                ),
-                                color: Colors.white,
-                                onPressed: () async {
-                                  await Clipboard.setData(
-                                    ClipboardData(text: number),
-                                  );
-
-                                  if (!context.mounted) return;
-
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'تم نسخ رقم البلاغ',
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
                             ],
-                          ),
-
-                          Text(
-                            'احتفظ برقم البلاغ لمتابعته لاحقاً.',
-                            textAlign: TextAlign.center,
-                            style: text.bodySmall?.copyWith(
-                              color: Colors.white70,
-                            ),
                           ),
                         ],
                       ),
@@ -159,12 +114,10 @@ class ReportSubmittedScreen extends StatelessWidget {
                   InfoCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Row(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.location_on_outlined,
@@ -174,8 +127,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                report.address ??
-                                    'الموقع المحدد على الخريطة',
+                                report.address ?? 'الموقع المحدد على الخريطة',
                                 style: text.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -188,9 +140,7 @@ class ReportSubmittedScreen extends StatelessWidget {
 
                         Text(
                           formatDate(now ?? DateTime.now()),
-                          style: text.bodySmall?.copyWith(
-                            color: muted,
-                          ),
+                          style: text.bodySmall?.copyWith(color: muted),
                         ),
 
                         const Divider(height: 24),
@@ -202,9 +152,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                           info: const ReportInfoIcon.status(
                             value: ReportStatusLabels.pending,
                           ),
-                          child: StatusChip.reportStatus(
-                            'pending',
-                          ),
+                          child: StatusChip.reportStatus('pending'),
                         ),
                       ],
                     ),
@@ -216,8 +164,7 @@ class ReportSubmittedScreen extends StatelessWidget {
                   InfoCard(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.stretch,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
                           'ماذا يحدث بعد ذلك؟',
@@ -231,22 +178,19 @@ class ReportSubmittedScreen extends StatelessWidget {
                         const _NextStep(
                           number: 1,
                           title: 'تحليل الصورة',
-                          body:
-                              'يحلل النظام الصورة للمساعدة في تحديد نوع المشكلة ومستوى شدتها.',
+                          body: 'يحلل النظام الصورة للمساعدة في تحديد نوع المشكلة ومستوى شدتها.',
                         ),
 
                         const _NextStep(
                           number: 2,
                           title: 'مراجعة البلاغ من مسؤول النظام',
-                          body:
-                              'في النظام التجريبي، يمكن لمسؤول النظام مراجعة البلاغ وتحديث حالته. لا يُرسل البلاغ تلقائياً إلى جهة حكومية.',
+                          body: 'في النظام التجريبي، يمكن لمسؤول النظام مراجعة البلاغ وتحديث حالته. لا يُرسل البلاغ تلقائياً إلى جهة حكومية.',
                         ),
 
                         const _NextStep(
                           number: 3,
                           title: 'المتابعة',
-                          body:
-                              'يمكنك متابعة حالة بلاغك والاطلاع على تفاصيله من «بلاغاتي».',
+                          body: 'يمكنك متابعة حالة بلاغك والاطلاع على تفاصيله من «بلاغاتي».',
                           isLast: true,
                         ),
                       ],
@@ -261,29 +205,19 @@ class ReportSubmittedScreen extends StatelessWidget {
         bottomNavigationBar: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              20,
-              8,
-              20,
-              12,
-            ),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pop(true),
-                  icon: const Icon(
-                    Icons.assignment_outlined,
-                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  icon: const Icon(Icons.assignment_outlined),
                   label: const Text('متابعة بلاغاتي'),
                 ),
                 const SizedBox(height: 4),
                 TextButton(
-                  onPressed: () =>
-                      Navigator.of(context).pop(false),
+                  onPressed: () => Navigator.of(context).pop(false),
                   child: const Text('العودة للرئيسية'),
                 ),
               ],
@@ -296,11 +230,7 @@ class ReportSubmittedScreen extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.child,
-    this.info,
-  });
+  const _SummaryRow({required this.label, required this.child, this.info});
 
   final String label;
   final Widget child;
@@ -316,9 +246,7 @@ class _SummaryRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
+                style: Theme.of(context).textTheme.bodySmall
                     ?.copyWith(color: context.khota.muted(0.65)),
               ),
             ),
@@ -354,9 +282,7 @@ class _NextStep extends StatelessWidget {
       label: 'الخطوة $number: $title. $body',
       excludeSemantics: true,
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: isLast ? 0 : 14,
-        ),
+        padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -382,8 +308,7 @@ class _NextStep extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,

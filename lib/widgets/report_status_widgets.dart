@@ -21,43 +21,19 @@ class ReportStatusLabels {
       filter == inProgress ? 'قيد التنفيذ' : filter;
 }
 
-/// Shows image analysis and report progress separately.
+/// Shows the citizen-facing report workflow status.
 class ReportStatusSummary extends StatelessWidget {
-  const ReportStatusSummary({
-    super.key,
-    required this.analysisStatus,
-    required this.reportStatus,
-  });
+  const ReportStatusSummary({super.key, required this.reportStatus});
 
-  final String analysisStatus;
   final String reportStatus;
 
   @override
-  Widget build(BuildContext context) {
-    final analysisIcon = switch (analysisStatus) {
-      ReportStatusLabels.analysisCompleted => Icons.check_circle_outline,
-      ReportStatusLabels.analysisFailed => Icons.error_outline,
-      _ => Icons.hourglass_top_rounded,
-    };
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _StatusItem(
-          title: 'حالة تحليل الصورة',
-          value: analysisStatus,
-          icon: analysisIcon,
-        ),
-        const SizedBox(height: 8),
-        _StatusItem(
-          title: 'حالة البلاغ',
-          value: reportStatus,
-          icon: Icons.assignment_outlined,
-          info: ReportInfoIcon.status(value: reportStatus),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => _StatusItem(
+    title: 'حالة البلاغ',
+    value: reportStatus,
+    icon: Icons.assignment_outlined,
+    info: ReportInfoIcon.status(value: reportStatus),
+  );
 }
 
 class _StatusItem extends StatelessWidget {
@@ -90,7 +66,7 @@ class _StatusItem extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, color: colors.primary, size: 16),
+                Icon(icon, color: colors.mutedText, size: 16),
                 const SizedBox(width: 6),
                 Expanded(child: Text(title, style: theme.textTheme.bodySmall)),
                 ?info,
@@ -141,17 +117,15 @@ class ReportStatusFilters extends StatelessWidget {
           final filter = ReportStatusLabels.filters[index];
           final selected = selectedFilter == filter;
           final count = counts[filter];
-          final fg = selected ? colors.onPrimary : colors.text;
+          final fg = colors.text;
           return ChoiceChip(
             showCheckmark: false,
             selected: selected,
             onSelected: (_) => onFilterChanged(filter),
             backgroundColor: colors.surface,
-            selectedColor: colors.primary,
+            selectedColor: colors.surfaceSunken,
             shape: StadiumBorder(
-              side: BorderSide(
-                color: selected ? colors.primary : colors.outline,
-              ),
+              side: BorderSide(color: colors.outline, width: selected ? 2 : 1),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             label: Row(
@@ -172,16 +146,14 @@ class ReportStatusFilters extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: selected
-                          ? colors.onPrimary.withValues(alpha: 0.22)
-                          : colors.divider,
+                      color: colors.divider,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       '$count',
                       semanticsLabel: '$count بلاغ',
                       style: text.labelMedium?.copyWith(
-                        color: fg,
+                        color: colors.mutedText,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

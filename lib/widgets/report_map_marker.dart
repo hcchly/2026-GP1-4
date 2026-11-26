@@ -5,27 +5,19 @@ import '../theme/khota_colors.dart';
 import '../utils/report_labels.dart';
 import 'report_status_widgets.dart';
 
-/// Marker colours by report status. The map tiles are light in both themes,
-/// so the same colours are used in light and dark mode.
+/// Map marker colors are driven by issue severity, never report workflow state.
 class ReportMarkerColors {
   ReportMarkerColors._();
 
-  static const pending = AppColors.amber;
-  static const inProgress = AppColors.gradientTop;
-  static const resolved = AppColors.greenDeep;
-  static const unknown = Color(0xFF6B7470);
+  static const high = AppColors.error;
+  static const medium = AppColors.amber;
+  static const neutral = Color(0xFF6B7470);
 
-  /// Colour for a `mapReports` status: pending / in_progress / resolved.
-  static Color forStatus(Object? status) => switch (status) {
-    'pending' => pending,
-    'in_progress' => inProgress,
-    'resolved' => resolved,
-    _ => unknown,
-  };
+  static Color forSeverity(Object? severity) => severityColor(severity);
 }
 
-/// One report on the map: coloured by status, with a warning icon and a red
-/// border when the severity is high.
+/// Report markers retain a neutral shape for low/unknown severity and show a
+/// warning marker for the high and medium severity categories.
 class ReportMapMarker extends StatelessWidget {
   const ReportMapMarker({
     super.key,
@@ -35,18 +27,19 @@ class ReportMapMarker extends StatelessWidget {
     this.selected = false,
   });
 
+  /// Retained for callers; workflow status does not affect marker styling.
   final Object? reportStatus;
   final Object? severity;
   final VoidCallback onPressed;
   final bool selected;
 
   static const normalIcon = Icons.location_on_rounded;
-  static const severeIcon = Icons.warning_rounded;
+  static const severeIcon = Icons.warning_amber_rounded;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.khota;
-    final severe = isSevere(severity);
+    final warning = isSevere(severity) || isMediumSeverity(severity);
 
     return Semantics(
       selected: selected,
@@ -57,25 +50,22 @@ class ReportMapMarker extends StatelessWidget {
           tooltip: 'عرض ملخص البلاغ',
           onPressed: onPressed,
           style: IconButton.styleFrom(
-            backgroundColor: ReportMarkerColors.forStatus(reportStatus),
+            backgroundColor: ReportMarkerColors.forSeverity(severity),
             foregroundColor: Colors.white,
             side: BorderSide(
-              color: severe
-                  ? AppColors.error
-                  : colors.isDark
-                  ? colors.background
-                  : Colors.white,
-              width: severe ? 3 : 2,
+              color: colors.isDark ? Colors.white70 : Colors.white,
+              width: 2,
             ),
           ),
-          icon: Icon(severe ? severeIcon : normalIcon, size: 25),
+          icon: Icon(warning ? severeIcon : normalIcon, size: 25),
         ),
       ),
     );
   }
 }
 
-/// Small key for the marker colours and the high-severity icon.
+/// Workflow labels stay in the key with neutral markers. Severity alone uses
+/// red, orange, or neutral visual indicators.
 class ReportMapLegend extends StatelessWidget {
   const ReportMapLegend({super.key});
 
@@ -112,23 +102,29 @@ class ReportMapLegend extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              row(dot(ReportMarkerColors.pending), ReportStatusLabels.pending),
+              row(dot(ReportMarkerColors.neutral), ReportStatusLabels.pending),
               row(
-                dot(ReportMarkerColors.inProgress),
+                dot(ReportMarkerColors.neutral),
                 ReportStatusLabels.short(ReportStatusLabels.inProgress),
               ),
+              row(dot(ReportMarkerColors.neutral), ReportStatusLabels.resolved),
               row(
-                dot(ReportMarkerColors.resolved),
-                ReportStatusLabels.resolved,
+                const Icon(
+                  ReportMapMarker.severeIcon,
+                  size: 16,
+                  color: ReportMarkerColors.high,
+                ),
+                'شدة عالية',
               ),
               row(
                 const Icon(
                   ReportMapMarker.severeIcon,
                   size: 16,
-                  color: AppColors.error,
+                  color: ReportMarkerColors.medium,
                 ),
-                'شدة عالية',
+                'شدة متوسطة',
               ),
+              row(dot(ReportMarkerColors.neutral), 'شدة منخفضة'),
             ],
           ),
         ),

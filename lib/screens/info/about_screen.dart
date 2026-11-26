@@ -23,37 +23,47 @@ class AboutScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         children: [
           BrandSurface(
-            padding: const EdgeInsets.fromLTRB(22, 32, 22, 30),
-            child: Column(
-              children: [
-                ColorFiltered(
-                  colorFilter: const ColorFilter.mode(
-                    AppColors.mint,
-                    BlendMode.srcIn,
-                  ),
-                  child: Image.asset(
-                    'assets/images/khota_mark_mist.png',
-                    width: 76,
-                    height: 56,
-                    fit: BoxFit.contain,
-                    excludeFromSemantics: true,
-                  ),
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 204),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ColorFiltered(
+                      colorFilter: const ColorFilter.mode(
+                        AppColors.mint,
+                        BlendMode.srcIn,
+                      ),
+                      child: Image.asset(
+                        'assets/images/khota_mark_mist.png',
+                        width: 76,
+                        height: 56,
+                        fit: BoxFit.contain,
+                        excludeFromSemantics: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'خُطى',
+                      textAlign: TextAlign.center,
+                      style: text.displaySmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'أرصفة أفضل تبدأ بخطوة',
+                      textAlign: TextAlign.center,
+                      style: text.titleMedium?.copyWith(color: AppColors.mist),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'خُطى',
-                  style: text.displaySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  'أرصفة أفضل تبدأ بخطوة',
-                  textAlign: TextAlign.center,
-                  style: text.titleMedium?.copyWith(color: AppColors.mist),
-                ),
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

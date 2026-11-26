@@ -12,7 +12,9 @@ import 'package:khota_app/theme/app_theme.dart';
 import 'package:khota_app/utils/report_labels.dart';
 import 'package:khota_app/utils/report_sort.dart';
 import 'package:khota_app/widgets/report_map_marker.dart';
+import 'package:khota_app/widgets/report_card.dart';
 import 'package:khota_app/widgets/report_status_widgets.dart';
+import 'package:khota_app/theme/khota_colors.dart';
 
 Widget host(
   Widget child, {
@@ -116,7 +118,14 @@ void main() {
     expect(severityLabel('severe'), 'عالية');
     expect(severityLabel('high'), 'عالية');
     expect(severityLabel('non_severe'), 'منخفضة إلى متوسطة');
+    expect(severityLabel('medium'), 'متوسطة');
+    expect(severityLabel('low'), 'منخفضة');
     expect(severityLabel(null), unknownSeverity);
+    expect(severityColor('high'), AppColors.error);
+    expect(severityColor('medium'), AppColors.amber);
+    expect(severityColor('low'), ReportMarkerColors.neutral);
+    expect(severityColor('non_severe'), AppColors.amber);
+    expect(isMediumSeverity('low_medium'), isTrue);
     expect(isSevere('HIGH'), isTrue);
     expect(isSevere('non_severe'), isFalse);
   });
@@ -225,8 +234,8 @@ void main() {
       expect(find.text('حي الملقا'), findsOneWidget);
       expect(find.text('تضرر سطح الرصيف'), findsOneWidget);
       expect(find.text('عالية'), findsOneWidget);
-      expect(find.text('حالة تحليل الصورة'), findsOneWidget);
-      expect(find.text(ReportStatusLabels.analysisCompleted), findsOneWidget);
+      expect(find.text('حالة تحليل الصورة'), findsNothing);
+      expect(find.text(ReportStatusLabels.analysisCompleted), findsNothing);
       expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text(ReportStatusLabels.resolved), findsOneWidget);
     });
@@ -236,7 +245,9 @@ void main() {
       (tester) async {
         await tester.pumpWidget(host(ReportDetailsScreen(report: newest)));
         await tester.pumpAndSettle();
-        expect(find.text(ReportStatusLabels.analyzing), findsOneWidget);
+        expect(find.text(ReportStatusLabels.analyzing), findsNothing);
+        expect(find.text('حالة تحليل الصورة'), findsNothing);
+        expect(find.text('حالة البلاغ'), findsOneWidget);
         expect(find.text('نوع المشكلة'), findsNothing);
         expect(find.text('الشدة'), findsNothing);
         expect(find.text(unknownIssueClass), findsNothing);
@@ -258,7 +269,9 @@ void main() {
       await tester.pumpWidget(host(ReportDetailsScreen(report: failed)));
       await tester.pumpAndSettle();
 
-      expect(find.text(ReportStatusLabels.analysisFailed), findsOneWidget);
+      expect(find.text(ReportStatusLabels.analysisFailed), findsNothing);
+      expect(find.text('حالة تحليل الصورة'), findsNothing);
+      expect(find.text('حالة البلاغ'), findsOneWidget);
       expect(find.text('نوع المشكلة'), findsNothing);
       expect(find.text('الشدة'), findsNothing);
       expect(find.text(unknownIssueClass), findsNothing);
@@ -290,32 +303,37 @@ void main() {
     }
   });
 
-  group('Map markers', () {
-    test('colour follows the report status', () {
-      expect(
-        ReportMarkerColors.forStatus('pending'),
-        ReportMarkerColors.pending,
-      );
-      expect(
-        ReportMarkerColors.forStatus('in_progress'),
-        ReportMarkerColors.inProgress,
-      );
-      expect(
-        ReportMarkerColors.forStatus('resolved'),
-        ReportMarkerColors.resolved,
-      );
-      expect(ReportMarkerColors.forStatus(null), ReportMarkerColors.unknown);
-      expect(
-        {
-          ReportMarkerColors.pending,
-          ReportMarkerColors.inProgress,
-          ReportMarkerColors.resolved,
-          ReportMarkerColors.unknown,
-        }.length,
-        4,
-      );
-    });
+  testWidgets('report workflow chips use neutral styling', (tester) async {
+    final colors = AppTheme.light().extension<KhotaColors>()!;
+    await tester.pumpWidget(
+      host(
+        Wrap(
+          children: [
+            StatusChip.reportStatus('pending'),
+            StatusChip.reportStatus('in_progress'),
+            StatusChip.reportStatus('resolved'),
+          ],
+        ),
+      ),
+    );
 
+    for (final label in [
+      ReportStatusLabels.pending,
+      'قيد التنفيذ',
+      ReportStatusLabels.resolved,
+    ]) {
+      final text = tester.widget<Text>(find.text(label));
+      expect(text.style?.color, colors.mutedText);
+      final chip = tester.widget<Container>(
+        find
+            .ancestor(of: find.text(label), matching: find.byType(Container))
+            .first,
+      );
+      expect((chip.decoration as BoxDecoration).color, colors.surfaceSunken);
+    }
+  });
+
+  group('Map markers', () {
     Future<IconButton> pumpMarker(
       WidgetTester tester, {
       required Object? status,
@@ -336,48 +354,64 @@ void main() {
       return tester.widget<IconButton>(find.byType(IconButton));
     }
 
-    Color? background(WidgetTester tester, IconButton button) =>
+    Color? background(IconButton button) =>
         button.style!.backgroundColor!.resolve({});
     BorderSide? side(IconButton button) => button.style!.side!.resolve({});
 
-    testWidgets('normal severity uses the pin and a thin white border', (
+    testWidgets('workflow status does not change a low-severity marker', (
       tester,
     ) async {
-      final button = await pumpMarker(
+      final pending = await pumpMarker(
         tester,
-        status: 'in_progress',
-        severity: 'non_severe',
+        status: 'pending',
+        severity: 'low',
       );
-      expect(background(tester, button), ReportMarkerColors.inProgress);
+      final pendingColor = background(pending);
+      expect(pendingColor, ReportMarkerColors.neutral);
+
+      final resolved = await pumpMarker(
+        tester,
+        status: 'resolved',
+        severity: 'low',
+      );
+      expect(background(resolved), pendingColor);
       expect(find.byIcon(ReportMapMarker.normalIcon), findsOneWidget);
-      expect(find.byIcon(ReportMapMarker.severeIcon), findsNothing);
-      expect(side(button)!.color, Colors.white);
-      expect(side(button)!.width, 2);
     });
 
-    testWidgets('high severity uses the warning icon and a red border', (
-      tester,
-    ) async {
+    testWidgets('high severity is red and uses a warning icon', (tester) async {
       var taps = 0;
       final button = await pumpMarker(
         tester,
         status: 'pending',
-        severity: 'severe',
+        severity: 'high',
         onPressed: () => taps++,
       );
-      expect(background(tester, button), ReportMarkerColors.pending);
+      expect(background(button), ReportMarkerColors.high);
       expect(find.byIcon(ReportMapMarker.severeIcon), findsOneWidget);
       expect(find.byIcon(ReportMapMarker.normalIcon), findsNothing);
-      expect(side(button)!.color, AppColors.error);
-      expect(side(button)!.width, 3);
+      expect(side(button)!.color, Colors.white);
+      expect(side(button)!.width, 2);
 
       await tester.tap(find.byType(IconButton));
       expect(taps, 1);
     });
 
+    testWidgets('medium severity is orange and uses a warning icon', (
+      tester,
+    ) async {
+      final button = await pumpMarker(
+        tester,
+        status: 'resolved',
+        severity: 'low_medium',
+      );
+      expect(background(button), ReportMarkerColors.medium);
+      expect(find.byIcon(ReportMapMarker.severeIcon), findsOneWidget);
+      expect(find.byIcon(ReportMapMarker.normalIcon), findsNothing);
+    });
+
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('legend lists the three statuses and high severity '
-          '(${mode.name})', (tester) async {
+      testWidgets('legend keeps workflow labels neutral and shows severity '
+          'colors (${mode.name})', (tester) async {
         await tester.pumpWidget(
           host(const Center(child: ReportMapLegend()), mode: mode),
         );
@@ -385,7 +419,9 @@ void main() {
         expect(find.text('قيد التنفيذ'), findsOneWidget);
         expect(find.text(ReportStatusLabels.resolved), findsOneWidget);
         expect(find.text('شدة عالية'), findsOneWidget);
-        expect(find.byIcon(ReportMapMarker.severeIcon), findsOneWidget);
+        expect(find.text('شدة متوسطة'), findsOneWidget);
+        expect(find.text('شدة منخفضة'), findsOneWidget);
+        expect(find.byIcon(ReportMapMarker.severeIcon), findsNWidgets(2));
         expect(tester.takeException(), isNull);
       });
     }

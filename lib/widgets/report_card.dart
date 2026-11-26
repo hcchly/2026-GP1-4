@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
@@ -8,14 +7,7 @@ import 'report_explanation_icon.dart';
 import 'place_name.dart';
 import 'private_report_image.dart';
 
-enum StatusTone {
-  neutral,
-  pending,
-  progress,
-  success,
-  info,
-  warning,
-}
+enum StatusTone { neutral, pending, progress, success, info, warning }
 
 class StatusChip extends StatelessWidget {
   const StatusChip({
@@ -42,7 +34,7 @@ class StatusChip extends StatelessWidget {
         return StatusChip(
           key: key,
           label: 'قيد التنفيذ',
-          tone: StatusTone.progress,
+          tone: StatusTone.neutral,
           showInfo: showInfo,
         );
       case 'resolved':
@@ -50,20 +42,23 @@ class StatusChip extends StatelessWidget {
         return StatusChip(
           key: key,
           label: ReportStatusLabels.resolved,
-          tone: StatusTone.success,
+          tone: StatusTone.neutral,
           showInfo: showInfo,
         );
       default:
         return StatusChip(
           key: key,
           label: ReportStatusLabels.pending,
-          tone: StatusTone.pending,
+          tone: StatusTone.neutral,
           showInfo: showInfo,
         );
     }
   }
 
   (Color, Color) _colors(KhotaColors colors) {
+    if (tone == StatusTone.neutral) {
+      return (colors.surfaceSunken, colors.mutedText);
+    }
     if (colors.isDark) {
       return switch (tone) {
         StatusTone.warning => (
@@ -77,44 +72,25 @@ class StatusChip extends StatelessWidget {
 
     switch (tone) {
       case StatusTone.progress:
-        return (
-          const Color(0xFFFBEFD5),
-          const Color(0xFF8A5A00),
-        );
+        return (const Color(0xFFFBEFD5), const Color(0xFF8A5A00));
       case StatusTone.success:
-        return (
-          AppColors.teal.withValues(alpha: 0.15),
-          AppColors.teal,
-        );
+        return (AppColors.teal.withValues(alpha: 0.15), AppColors.teal);
       case StatusTone.info:
-        return (
-          AppColors.indigo.withValues(alpha: 0.10),
-          AppColors.indigo,
-        );
+        return (AppColors.indigo.withValues(alpha: 0.10), AppColors.indigo);
       case StatusTone.warning:
-        return (
-          AppColors.error.withValues(alpha: 0.10),
-          AppColors.error,
-        );
+        return (AppColors.error.withValues(alpha: 0.10), AppColors.error);
       case StatusTone.neutral:
       case StatusTone.pending:
-        return (
-          AppColors.slate.withValues(alpha: 0.45),
-          AppColors.indigo,
-        );
+        return (colors.surfaceSunken, colors.mutedText);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final (background, foreground) =
-        _colors(context.khota);
+    final (background, foreground) = _colors(context.khota);
 
     final chip = Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 4,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(20),
@@ -131,7 +107,10 @@ class StatusChip extends StatelessWidget {
     if (!showInfo) return chip;
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [chip, ReportInfoIcon.status(value: label)],
+      children: [
+        chip,
+        ReportInfoIcon.status(value: label),
+      ],
     );
   }
 }
@@ -139,10 +118,7 @@ class StatusChip extends StatelessWidget {
 // Kept temporarily for compatibility with other screens.
 // We will remove its visible usage in the next steps.
 class AnalysisStatusLine extends StatelessWidget {
-  const AnalysisStatusLine({
-    super.key,
-    required this.status,
-  });
+  const AnalysisStatusLine({super.key, required this.status});
 
   final String status;
 
@@ -150,21 +126,16 @@ class AnalysisStatusLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.khota;
 
-    final (IconData icon, String label, Color color) =
-        switch (status.trim().toLowerCase()) {
+    final (IconData icon, String label, Color color) = switch (status
+        .trim()
+        .toLowerCase()) {
       'completed' || 'done' || 'اكتمل تحليل الصورة' => (
         Icons.check_circle_outline,
         'اكتمل تحليل الصورة',
         colors.primary,
       ),
-      'not_assessable' ||
-      'notassessable' ||
-      'failed' ||
-      'تعذّر تحليل الصورة' => (
-        Icons.error_outline,
-        'تعذّر تقييم الصورة',
-        AppColors.error,
-      ),
+      'not_assessable' || 'notassessable' || 'failed' || 'تعذّر تحليل الصورة' =>
+        (Icons.error_outline, 'تعذّر تقييم الصورة', AppColors.error),
       _ => (
         Icons.hourglass_top_rounded,
         ReportStatusLabels.analyzing,
@@ -178,13 +149,7 @@ class AnalysisStatusLine extends StatelessWidget {
         Icon(icon, size: 16, color: color),
         const SizedBox(width: 4),
         Flexible(
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-            ),
-          ),
+          child: Text(label, style: TextStyle(fontSize: 12, color: color)),
         ),
       ],
     );
@@ -241,14 +206,12 @@ class ReportSummaryCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(15),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
                   ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(17),
+                    borderRadius: BorderRadius.circular(17),
                     child: SizedBox(
                       width: 62,
                       height: 62,
@@ -266,16 +229,13 @@ class ReportSummaryCard extends StatelessWidget {
 
                   Expanded(
                     child: Column(
-                      crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (reportNumber != null)
                           Text(
                             reportNumber!,
-                            textDirection:
-                                TextDirection.ltr,
-                            style:
-                                text.labelSmall?.copyWith(
+                            textDirection: TextDirection.ltr,
+                            style: text.labelSmall?.copyWith(
                               color: colors.primary,
                               fontWeight: FontWeight.w700,
                             ),
@@ -287,8 +247,7 @@ class ReportSummaryCard extends StatelessWidget {
                           title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style:
-                              text.titleSmall?.copyWith(
+                          style: text.titleSmall?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -308,21 +267,14 @@ class ReportSummaryCard extends StatelessWidget {
                 address: locationText,
                 latitude: latitude,
                 longitude: longitude,
-                style: text.bodySmall?.copyWith(
-                  color: muted,
-                ),
+                style: text.bodySmall?.copyWith(color: muted),
               ),
 
               const SizedBox(height: 9),
 
               // Only the report date is displayed.
               // Image analysis status is hidden.
-              Text(
-                dateText,
-                style: text.labelSmall?.copyWith(
-                  color: muted,
-                ),
-              ),
+              Text(dateText, style: text.labelSmall?.copyWith(color: muted)),
             ],
           ),
         ),
@@ -344,9 +296,7 @@ class _ThumbPlaceholder extends StatelessWidget {
         Icons.photo_camera_outlined,
         color: colors.isDark
             ? colors.mutedText
-            : AppColors.slate.withValues(
-                alpha: 0.9,
-              ),
+            : AppColors.slate.withValues(alpha: 0.9),
       ),
     );
   }

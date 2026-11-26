@@ -14,8 +14,9 @@ Future<void> _pump(
   WidgetTester tester,
   NewReportScreen screen, {
   void Function(SubmittedReport?)? onResult,
+  Size size = const Size(800, 1800),
 }) async {
-  await tester.binding.setSurfaceSize(const Size(800, 1800));
+  await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
@@ -24,10 +25,9 @@ Future<void> _pump(
           body: TextButton(
             child: const Text('open'),
             onPressed: () async {
-              final result = await Navigator.of(context)
-                  .push<SubmittedReport>(
-                    MaterialPageRoute(builder: (_) => screen),
-                  );
+              final result = await Navigator.of(context).push<SubmittedReport>(
+                MaterialPageRoute(builder: (_) => screen),
+              );
               onResult?.call(result);
             },
           ),
@@ -44,10 +44,7 @@ Finder _button(String label) => find.widgetWithText(ElevatedButton, label);
 void main() {
   test('report number format', () {
     expect(ReportService.shortCode('abCD12efGH34ijKL56mn'), 'ABCD12EF');
-    expect(
-      ReportService.displayNumber('abCD12efGH34ijKL56mn'),
-      'KHT-ABCD12EF',
-    );
+    expect(ReportService.displayNumber('abCD12efGH34ijKL56mn'), 'KHT-ABCD12EF');
     expect(ReportService.generateId().length, 20);
     expect(ReportService.generateId(), isNot(ReportService.generateId()));
   });
@@ -87,6 +84,28 @@ void main() {
     await tester.tap(find.text('من المعرض'));
     await tester.pumpAndSettle();
     expect(camera.galleryCalls, 1);
+  });
+
+  testWidgets('photo step hints at lower content and fades after scrolling', (
+    tester,
+  ) async {
+    const cue = 'اسحب للأسفل لمراجعة السؤال والخيارات';
+    await _pump(
+      tester,
+      NewReportScreen(
+        initialDraft: ReportDraft(imageBytes: testPhoto),
+        camera: FakeCamera(),
+      ),
+      size: const Size(390, 780),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(cue), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -180));
+    await tester.pumpAndSettle();
+
+    expect(find.text(cue), findsNothing);
+    expect(find.text('هل يظهر الرصيف والمشكلة في الصورة؟'), findsOneWidget);
   });
 
   testWidgets('step 1: camera failure shows a recoverable error', (

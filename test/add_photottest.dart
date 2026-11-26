@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,17 +9,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('All eight photo guide images are available', () async {
-   
-const images = [
-  'angle_good.png',
-  'angle_bad.png',
-  'distance_good.png',
-  'distance_bad.png',
-  'lighting_good.png',
-  'lighting_bad.png',
-  'context_good.png',
-  'context_bad.png',
-];
+    const images = [
+      'angle_good.png',
+      'angle_bad.png',
+      'distance_good.png',
+      'distance_bad.png',
+      'lighting_good.png',
+      'lighting_bad.png',
+      'context_good.png',
+      'context_bad.png',
+    ];
 
     for (final image in images) {
       final data = await rootBundle.load('assets/images/$image');
@@ -28,66 +26,42 @@ const images = [
     }
   });
 
-  testWidgets('Photo guide displays photography instructions',
-      (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: PhotoGuideScreen()),
-    );
+  testWidgets('Photo guide displays photography instructions', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: PhotoGuideScreen()));
 
     expect(find.text('دليل التصوير'), findsOneWidget);
-    expect(
-      find.textContaining('زاوية التصوير'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('زاوية التصوير'), findsOneWidget);
   });
 
-  testWidgets('Analysis and report statuses are separate',
-      (tester) async {
+  testWidgets('details summary keeps report status and hides analysis state', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: ReportStatusSummary(
-            analysisStatus: ReportStatusLabels.analyzing,
-            reportStatus: ReportStatusLabels.pending,
-          ),
+          body: ReportStatusSummary(reportStatus: ReportStatusLabels.pending),
         ),
       ),
     );
 
-    expect(find.text('حالة تحليل الصورة'), findsOneWidget);
+    expect(find.text('حالة تحليل الصورة'), findsNothing);
+    expect(find.text(ReportStatusLabels.analyzing), findsNothing);
     expect(find.text('حالة البلاغ'), findsOneWidget);
-    expect(
-      find.text(ReportStatusLabels.analyzing),
-      findsOneWidget,
-    );
-    expect(
-      find.text(ReportStatusLabels.pending),
-      findsOneWidget,
-    );
+    expect(find.text(ReportStatusLabels.pending), findsOneWidget);
 
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-          body: ReportStatusSummary(
-            analysisStatus: ReportStatusLabels.analyzing,
-            reportStatus: ReportStatusLabels.resolved,
-          ),
+          body: ReportStatusSummary(reportStatus: ReportStatusLabels.resolved),
         ),
       ),
     );
 
-    expect(
-      find.text(ReportStatusLabels.resolved),
-      findsOneWidget,
-    );
-    expect(
-      find.text(ReportStatusLabels.analyzing),
-      findsOneWidget,
-    );
+    expect(find.text(ReportStatusLabels.resolved), findsOneWidget);
+    expect(find.text('حالة تحليل الصورة'), findsNothing);
   });
 
-  testWidgets('Report filters update selected status',
-      (tester) async {
+  testWidgets('Report filters update selected status', (tester) async {
     String selected = 'الكل';
 
     await tester.pumpWidget(
@@ -118,9 +92,6 @@ const images = [
     await tester.pump();
 
     expect(selected, ReportStatusLabels.resolved);
-    expect(
-      tester.widget<ChoiceChip>(resolved).selected,
-      isTrue,
-    );
+    expect(tester.widget<ChoiceChip>(resolved).selected, isTrue);
   });
 }

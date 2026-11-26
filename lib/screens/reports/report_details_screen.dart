@@ -115,10 +115,21 @@ class ReportDetailsScreen extends StatelessWidget {
                         ),
                         const Divider(height: 1),
                         _DetailRow(
-                          icon: Icons.speed_outlined,
+                          icon:
+                              isSevere(report.severity) ||
+                                  isMediumSeverity(report.severity)
+                              ? Icons.warning_amber_rounded
+                              : Icons.speed_outlined,
+                          iconColor: severityColor(report.severity),
                           label: 'الشدة',
                           info: ReportInfoIcon.severity(value: report.severity),
-                          child: Text(severityLabel(report.severity)),
+                          child: Text(
+                            severityLabel(report.severity),
+                            style: TextStyle(
+                              color: severityColor(report.severity),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -131,11 +142,8 @@ class ReportDetailsScreen extends StatelessWidget {
                 ],
 
                 const SizedBox(height: 16),
-                // Image analysis and report status are two separate processes.
-                ReportStatusSummary(
-                  analysisStatus: report.analysisStatus,
-                  reportStatus: report.reportStatus,
-                ),
+                // Analysis continues in the backend; only citizen status is shown.
+                ReportStatusSummary(reportStatus: report.reportStatus),
 
                 if (demo) ...[
                   const SizedBox(height: 16),
@@ -156,12 +164,14 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.child,
     this.info,
+    this.iconColor,
   });
 
   final IconData icon;
   final String label;
   final Widget child;
   final Widget? info;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +183,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: colors.primary),
+          Icon(icon, size: 20, color: iconColor ?? colors.primary),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -184,7 +194,9 @@ class _DetailRow extends StatelessWidget {
                     Expanded(
                       child: Text(
                         label,
-                        style: text.bodySmall?.copyWith(color: colors.muted(0.65)),
+                        style: text.bodySmall?.copyWith(
+                          color: colors.muted(0.65),
+                        ),
                       ),
                     ),
                     ?info,
@@ -248,7 +260,8 @@ class _DetectionList extends StatelessWidget {
                     radius: 16,
                     backgroundColor: detectionColor(entry.value),
                     child: Icon(
-                      isSevere(entry.value.severity)
+                      isSevere(entry.value.severity) ||
+                              isMediumSeverity(entry.value.severity)
                           ? Icons.warning_amber_rounded
                           : Icons.info_outline_rounded,
                       color: Colors.white,
