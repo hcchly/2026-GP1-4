@@ -10,6 +10,7 @@ import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/info_card.dart';
 import '../../widgets/place_name.dart';
 import '../../widgets/report_card.dart';
+import '../../widgets/report_explanation_icon.dart';
 import '../../widgets/report_status_widgets.dart';
 import 'report_details_screen.dart';
 
@@ -318,21 +319,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                   // Show report status only.
                   // Analysis status stays in Firebase.
-                  Row(
-                    children: [
-                      Text(
-                        'حالة البلاغ',
-                        style: text.bodySmall?.copyWith(
-                          color: muted,
-                        ),
-                      ),
-
-                      const SizedBox(width: 12),
-
-                      StatusChip.reportStatus(
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final label = Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'حالة البلاغ',
+                              style: text.bodySmall?.copyWith(color: muted),
+                            ),
+                          ),
+                          ReportInfoIcon.status(value: report.reportStatus),
+                        ],
+                      );
+                      final status = StatusChip.reportStatus(
                         report.reportStatus,
-                      ),
-                    ],
+                      );
+                      if (constraints.maxWidth < 300) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: constraints.maxWidth, child: label),
+                            const SizedBox(height: 6),
+                            status,
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: label),
+                          const SizedBox(width: 12),
+                          status,
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: 14),

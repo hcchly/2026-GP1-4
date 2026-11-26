@@ -50,3 +50,5 @@ app.*.map.json
 /functions-map/node_modules/
 /firebase-debug.log
 /lib.zipqq
+# Local-only Firebase emulator binaries
+/.firebase-emulators/

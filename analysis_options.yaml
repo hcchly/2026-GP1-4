@@ -15,6 +15,7 @@ analyzer:
     - android/**
     - ios/**
     - web/**
+    - model-v2-service/examples/flutter_api_example.dart
 
 linter:
   # The lint rules applied to this project can be customized in the

@@ -181,6 +181,7 @@ void main() {
 
     await tester.pumpWidget(host(const SettingsScreen()));
     await tester.pumpAndSettle();
+    await scrollToEnd(tester);
 
     Brightness brightness() =>
         Theme.of(tester.element(find.byType(SettingsScreen))).brightness;

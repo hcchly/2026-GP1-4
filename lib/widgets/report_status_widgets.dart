@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../theme/khota_colors.dart';
+import 'report_explanation_icon.dart';
 
 /// Display labels used by the report interface.
 class ReportStatusLabels {
   static const analyzing = 'جارٍ تحليل الصورة';
+  static const analysisCompleted = 'اكتمل تحليل الصورة';
+  static const analysisFailed = 'تعذّر تحليل الصورة';
 
   static const pending = 'قيد الانتظار';
   static const inProgress = 'قيد التنفيذ من الجهة المختصة';
@@ -31,37 +34,28 @@ class ReportStatusSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final analysis = _StatusItem(
-      title: 'حالة تحليل الصورة',
-      value: analysisStatus,
-      icon: Icons.image_search_outlined,
-    );
-    final report = _StatusItem(
-      title: 'حالة البلاغ',
-      value: reportStatus,
-      icon: Icons.assignment_outlined,
-    );
+    final analysisIcon = switch (analysisStatus) {
+      ReportStatusLabels.analysisCompleted => Icons.check_circle_outline,
+      ReportStatusLabels.analysisFailed => Icons.error_outline,
+      _ => Icons.hourglass_top_rounded,
+    };
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns =
-            constraints.maxWidth >= 288 &&
-            MediaQuery.textScalerOf(context).scale(14) <= 18;
-        if (columns) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: analysis),
-              const SizedBox(width: 8),
-              Expanded(child: report),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [analysis, const SizedBox(height: 8), report],
-        );
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StatusItem(
+          title: 'حالة تحليل الصورة',
+          value: analysisStatus,
+          icon: analysisIcon,
+        ),
+        const SizedBox(height: 8),
+        _StatusItem(
+          title: 'حالة البلاغ',
+          value: reportStatus,
+          icon: Icons.assignment_outlined,
+          info: ReportInfoIcon.status(value: reportStatus),
+        ),
+      ],
     );
   }
 }
@@ -71,11 +65,13 @@ class _StatusItem extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
+    this.info,
   });
 
   final String title;
   final String value;
   final IconData icon;
+  final Widget? info;
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +93,7 @@ class _StatusItem extends StatelessWidget {
                 Icon(icon, color: colors.primary, size: 16),
                 const SizedBox(width: 6),
                 Expanded(child: Text(title, style: theme.textTheme.bodySmall)),
+                ?info,
               ],
             ),
             const SizedBox(height: 4),

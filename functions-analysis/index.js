@@ -26,25 +26,33 @@ async function analyseReport(reportId) {
     return;
   }
 
-  const [bytes] = await getStorage().bucket().file(report.imageUrl).download();
-
   let fields;
-  for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
-    await sleep(WAIT_MS[attempt]);
-    try {
-      const response = await predict(apiUrl.value(), bytes, `${reportId}.jpg`);
-      fields = completedFields(response);
-      logger.info('analysis completed', {
-        reportId,
-        detections: fields.detectionCount,
-        modelVersion: response.model_version,
-        processingMs: response.processing_ms,
-      });
-      break;
-    } catch (error) {
-      logger.warn('analysis attempt failed', { reportId, attempt: attempt + 1, error: error.message });
-      fields = failedFields(`AI service error: ${error.message}`);
-      if (error.retry === false) break;
+  let bytes;
+  try {
+    [bytes] = await getStorage().bucket().file(report.imageUrl).download();
+  } catch (error) {
+    logger.error('report image download failed', { reportId, error: error.message });
+    fields = failedFields(`Image download error: ${error.message}`);
+  }
+
+  if (!fields) {
+    for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+      await sleep(WAIT_MS[attempt]);
+      try {
+        const response = await predict(apiUrl.value(), bytes, `${reportId}.jpg`);
+        fields = completedFields(response);
+        logger.info('analysis completed', {
+          reportId,
+          detections: fields.detectionCount,
+          modelVersion: response.model_version,
+          processingMs: response.processing_ms,
+        });
+        break;
+      } catch (error) {
+        logger.warn('analysis attempt failed', { reportId, attempt: attempt + 1, error: error.message });
+        fields = failedFields(`AI service error: ${error.message}`);
+        if (error.retry === false) break;
+      }
     }
   }
 
