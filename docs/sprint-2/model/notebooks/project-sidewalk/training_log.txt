@@ -1,0 +1,49 @@
+device=mps torch=2.8.0 torchvision=0.23.0 python=3.9.6
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+DatasetDict({
+    train: Dataset({
+        features: ['image', 'label'],
+        num_rows: 4766
+    })
+    validation: Dataset({
+        features: ['image', 'label'],
+        num_rows: 1021
+    })
+    test: Dataset({
+        features: ['image', 'label'],
+        num_rows: 1024
+    })
+})
+source label names (index order): ['correct', 'incorrect']
+task class names (index order): ['damage', 'no damage']
+train label counts: damage (correct, idx 0) = 2886, no damage (incorrect, idx 1) = 1880 | total = 4766
+validation label counts: damage (correct, idx 0) = 618, no damage (incorrect, idx 1) = 403 | total = 1021
+test label counts: damage (correct, idx 0) = 620, no damage (incorrect, idx 1) = 404 | total = 1024
+decoding + resizing images to 224x224 ...
+images ready (311s)
+majority class (from train) = damage (idx 0)
+epoch  1 | train_loss 0.6246 train_acc 0.6853 | val_acc 0.7238 val_macro_f1 0.6833 | 159s *best*
+epoch  2 | train_loss 0.4994 train_acc 0.7595 | val_acc 0.6915 val_macro_f1 0.6882 | 162s
+epoch  3 | train_loss 0.4302 train_acc 0.7982 | val_acc 0.7385 val_macro_f1 0.7191 | 202s *best*
+epoch  4 | train_loss 0.3757 train_acc 0.8340 | val_acc 0.7600 val_macro_f1 0.7393 | 167s *best*
+epoch  5 | train_loss 0.2911 train_acc 0.8781 | val_acc 0.6719 val_macro_f1 0.6713 | 86s
+epoch  6 | train_loss 0.2567 train_acc 0.8934 | val_acc 0.7032 val_macro_f1 0.6983 | 932s
+epoch  7 | train_loss 0.1964 train_acc 0.9198 | val_acc 0.7561 val_macro_f1 0.7416 | 61s
+epoch  8 | train_loss 0.1714 train_acc 0.9326 | val_acc 0.7522 val_macro_f1 0.7364 | 1847s
+epoch  9 | train_loss 0.1257 train_acc 0.9532 | val_acc 0.7316 val_macro_f1 0.6957 | 371s
+epoch 10 | train_loss 0.1211 train_acc 0.9568 | val_acc 0.7434 val_macro_f1 0.7112 | 1222s
+epoch 11 | train_loss 0.1086 train_acc 0.9603 | val_acc 0.7326 val_macro_f1 0.7183 | 3330s
+epoch 12 | train_loss 0.0905 train_acc 0.9662 | val_acc 0.7405 val_macro_f1 0.7203 | 67s
+epoch 13 | train_loss 0.0876 train_acc 0.9694 | val_acc 0.7600 val_macro_f1 0.7411 | 66s
+epoch 14 | train_loss 0.0768 train_acc 0.9715 | val_acc 0.7512 val_macro_f1 0.7352 | 70s
+epoch 15 | train_loss 0.0751 train_acc 0.9725 | val_acc 0.7630 val_macro_f1 0.7490 | 76s *best*
+selected epoch 15 (best val acc 0.7630)
+[validation] model acc 0.7630 macro-F1 0.7490 | baseline acc 0.6053 macro-F1 0.3771
+[validation]   damage    P 0.7919 R 0.8252 F1 0.8082 n 618
+[validation]   no damage P 0.7135 R 0.6675 F1 0.6897 n 403
+[validation]   confusion (rows true, cols pred, order ['damage', 'no damage']): [[510, 108], [134, 269]]
+[test] model acc 0.7129 macro-F1 0.6962 | baseline acc 0.6055 macro-F1 0.3771
+[test]   damage    P 0.7531 R 0.7823 F1 0.7674 n 620
+[test]   no damage P 0.6447 R 0.6064 F1 0.6250 n 404
+[test]   confusion (rows true, cols pred, order ['damage', 'no damage']): [[485, 135], [159, 245]]
+saved outputs/sidewalk_binary/results.json
