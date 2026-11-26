@@ -39,10 +39,10 @@ function projectMapReport(report) {
     issueClass: ['surface_damage', 'curb_ramp_issue'].includes(issueClass)
       ? issueClass
       : null,
-    severity: severity === 'severe' || severity === 'high'
-      ? 'severe'
-      : ['non_severe', 'not_severe', 'low_medium', 'low', 'medium'].includes(severity)
-        ? 'non_severe'
+    severity: severity === 'high' || severity === 'severe'
+      ? 'high'
+      : ['low_medium', 'non_severe', 'not_severe', 'low', 'medium'].includes(severity)
+        ? 'low_medium'
         : null,
     reportStatus: status,
     detectionCount: Number.isInteger(report.detectionCount) && report.detectionCount >= 0
