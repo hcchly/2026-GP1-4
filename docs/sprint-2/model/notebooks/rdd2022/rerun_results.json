@@ -1,0 +1,20 @@
+{
+  "split": "val",
+  "images": 2359,
+  "boxes": 5480,
+  "imgsz": 960,
+  "dataset_id": "5a43a77bf0e55b2d4cdfe4b1ea2df06dcd8ecb52dd3f3dda26e592fddc33542e",
+  "weights_sha256": "6ae4aa3f3ded3ed018fbccba5a8f38cf87df6ed0867b5f8d37b14a1e0a495c5d",
+  "ultralytics": "8.4.174",
+  "torch": "2.8.0",
+  "mAP50": 0.5698644286628736,
+  "mAP50_95": 0.26333785725380826,
+  "confidence": 0.31,
+  "precision": 0.6089228295819936,
+  "recall": 0.5529197080291971,
+  "f1": 0.5795715378729915,
+  "tp": 3030,
+  "fp": 1946,
+  "fn": 2450,
+  "matching_iou": 0.5
+}

@@ -1,0 +1,22 @@
+{
+  "settings": {
+    "split": "test",
+    "imgsz": 640,
+    "batch": 4,
+    "device": "cpu",
+    "conf": 0.001,
+    "iou": 0.7,
+    "max_det": 300,
+    "rect": false,
+    "workers": 0,
+    "half": false
+  },
+  "operating_confidence": 0.26,
+  "weights_sha256": "af43565874affaba2d08e547da04c455f5f1326a2534c66b6f6183946d12353a",
+  "ultralytics": "8.4.174",
+  "torch": "2.11.0+cpu",
+  "images": 500,
+  "boxes": 1064,
+  "training_performed": false,
+  "threshold_tuned_on_test": false
+}
