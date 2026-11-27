@@ -86,26 +86,34 @@ void main() {
     expect(camera.galleryCalls, 1);
   });
 
-  testWidgets('photo step hints at lower content and fades after scrolling', (
+  testWidgets('photo step shows the sidewalk question without scrolling', (
     tester,
   ) async {
-    const cue = 'اسحب للأسفل لمراجعة السؤال والخيارات';
+    const question = 'هل يظهر الرصيف والمشكلة في الصورة؟';
+    const hint = 'أعد التصوير أو اختر صورة يظهر فيها الرصيف';
     await _pump(
       tester,
       NewReportScreen(
         initialDraft: ReportDraft(imageBytes: testPhoto),
         camera: FakeCamera(),
       ),
-      size: const Size(390, 780),
+      size: const Size(390, 844),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(cue), findsOneWidget);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -180));
-    await tester.pumpAndSettle();
+    final screen = tester.getRect(find.byType(NewReportScreen));
+    final questionRect = tester.getRect(find.text(question));
+    expect(screen.contains(questionRect.center), isTrue);
+    // A saved draft starts confirmed, so no hint is shown yet.
+    expect(find.text(hint), findsNothing);
 
-    expect(find.text(cue), findsNothing);
-    expect(find.text('هل يظهر الرصيف والمشكلة في الصورة؟'), findsOneWidget);
+    await tester.tap(find.text('لا، غير ظاهر'));
+    await tester.pumpAndSettle();
+    expect(find.text(hint), findsOneWidget);
+
+    await tester.tap(find.text('نعم، واضح'));
+    await tester.pumpAndSettle();
+    expect(find.text(hint), findsNothing);
   });
 
   testWidgets('step 1: camera failure shows a recoverable error', (

@@ -216,7 +216,7 @@ class _ReportsMapScreenState extends State<ReportsMapScreen> {
       point: report.point,
       width: 48,
       height: 48,
-      // Marker color and warning icon communicate severity only.
+      // The marker shows the severity; its corner badge shows the status.
       child: ReportMapMarker(
         reportStatus: report.reportStatus,
         severity: report.severity,

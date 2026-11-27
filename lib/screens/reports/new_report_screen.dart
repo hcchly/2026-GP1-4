@@ -68,8 +68,6 @@ class _NewReportScreenState extends State<NewReportScreen>
 
   // Step 1: Photo
   late final ScrollController _photoScrollController;
-  bool _showPhotoScrollCue = false;
-  bool _photoScrollCueDismissed = false;
   Uint8List? _image;
   String? _imageUrl;
   bool _picking = false;
@@ -99,8 +97,7 @@ class _NewReportScreenState extends State<NewReportScreen>
   void initState() {
     super.initState();
 
-    _photoScrollController = ScrollController()
-      ..addListener(_updatePhotoScrollCue);
+    _photoScrollController = ScrollController();
     _image = widget.initialDraft?.imageBytes;
     _imageUrl = widget.initialDraft?.imageUrl;
 
@@ -254,10 +251,8 @@ class _NewReportScreenState extends State<NewReportScreen>
 
   void _setSelectedPhoto(Uint8List image) {
     _photoCheckRequest++;
-    _photoScrollCueDismissed = false;
 
     setState(() {
-      _showPhotoScrollCue = false;
       _image = image;
       _imageUrl = null;
       _photoError = null;
@@ -764,6 +759,19 @@ class _NewReportScreenState extends State<NewReportScreen>
               child: const Text('استخدام الصورة'),
             ),
 
+            if (!_picking && !_photoChecking && _sidewalkVisible != true) ...[
+              const SizedBox(height: 6),
+              Text(
+                _sidewalkVisible == null
+                    ? 'أجب عن سؤال وضوح الصورة للمتابعة'
+                    : 'أعد التصوير أو اختر صورة يظهر فيها الرصيف',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.khota.muted(0.7),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 10),
 
             Row(
@@ -866,33 +874,18 @@ class _NewReportScreenState extends State<NewReportScreen>
   // PHOTO UI
   // ==============================================================
 
-  void _updatePhotoScrollCue() {
-    if (!mounted || !_photoScrollController.hasClients) return;
-    final position = _photoScrollController.position;
-    if (position.pixels > 16) _photoScrollCueDismissed = true;
-    final shouldShow =
-        _step == 1 &&
-        _image != null &&
-        !_photoScrollCueDismissed &&
-        position.maxScrollExtent > 24 &&
-        position.pixels <= 16;
-    if (_showPhotoScrollCue != shouldShow) {
-      setState(() => _showPhotoScrollCue = shouldShow);
-    }
-  }
-
   Widget _buildPhotoStep(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => _updatePhotoScrollCue(),
-    );
+    // A taken photo is shown smaller than the live camera frame, so the
+    // sidewalk question below it stays visible without scrolling.
+    final previewHeight = MediaQuery.sizeOf(context).height * 0.38;
 
     return ListView(
       controller: _photoScrollController,
       padding: const EdgeInsets.all(20),
       children: [
-        AspectRatio(
-          aspectRatio: 3 / 4,
+        _PhotoFrame(
+          compactHeight: _image == null ? null : previewHeight,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: _image == null
@@ -997,36 +990,6 @@ class _NewReportScreenState extends State<NewReportScreen>
             ),
           ),
         ],
-
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          child: _showPhotoScrollCue && _image != null
-              ? Padding(
-                  key: const ValueKey('photo-scroll-cue'),
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 20,
-                        color: context.khota.muted(0.65),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'اسحب للأسفل لمراجعة السؤال والخيارات',
-                          textAlign: TextAlign.center,
-                          style: text.bodySmall?.copyWith(
-                            color: context.khota.muted(0.65),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : const SizedBox.shrink(key: ValueKey('photo-scroll-cue-hidden')),
-        ),
 
         // User confirmation that the sidewalk is visible.
         if (_image != null) ...[
@@ -1813,5 +1776,21 @@ class _ErrorBox extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Live camera keeps the 3:4 frame; a taken photo uses [compactHeight] so the
+/// question under it fits on screen.
+class _PhotoFrame extends StatelessWidget {
+  const _PhotoFrame({required this.child, this.compactHeight});
+
+  final Widget child;
+  final double? compactHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final height = compactHeight;
+    if (height == null) return AspectRatio(aspectRatio: 3 / 4, child: child);
+    return SizedBox(height: height, child: child);
   }
 }

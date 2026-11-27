@@ -5,7 +5,7 @@ import 'package:khota_app/theme/app_theme.dart';
 
 void main() {
   for (final size in [const Size(320, 740), const Size(800, 900)]) {
-    testWidgets('About banner centers responsively at ${size.width}px', (
+    testWidgets('About intro renders at ${size.width}px', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(size);

@@ -409,19 +409,44 @@ void main() {
       expect(find.byIcon(ReportMapMarker.normalIcon), findsNothing);
     });
 
+    testWidgets('the corner badge shows the report status', (tester) async {
+      await pumpMarker(tester, status: 'pending', severity: 'high');
+      expect(find.byIcon(MapReportStatus.pending.icon), findsOneWidget);
+
+      await pumpMarker(tester, status: 'in_progress', severity: 'high');
+      expect(find.byIcon(MapReportStatus.inProgress.icon), findsOneWidget);
+
+      await pumpMarker(tester, status: 'resolved', severity: 'high');
+      expect(find.byIcon(MapReportStatus.resolved.icon), findsOneWidget);
+      final opacity = tester.widget<Opacity>(
+        find.ancestor(
+          of: find.byType(IconButton),
+          matching: find.byType(Opacity),
+        ).first,
+      );
+      expect(opacity.opacity, lessThan(1));
+
+      await pumpMarker(tester, status: 'unknown', severity: 'high');
+      expect(find.byType(ReportStatusBadge), findsNothing);
+    });
+
     for (final mode in [ThemeMode.light, ThemeMode.dark]) {
-      testWidgets('legend keeps workflow labels neutral and shows severity '
-          'colors (${mode.name})', (tester) async {
+      testWidgets('legend shows report status and severity groups '
+          '(${mode.name})', (tester) async {
         await tester.pumpWidget(
           host(const Center(child: ReportMapLegend()), mode: mode),
         );
+        expect(find.text('حالة البلاغ'), findsOneWidget);
         expect(find.text(ReportStatusLabels.pending), findsOneWidget);
         expect(find.text('قيد التنفيذ'), findsOneWidget);
         expect(find.text(ReportStatusLabels.resolved), findsOneWidget);
-        expect(find.text('شدة عالية'), findsOneWidget);
-        expect(find.text('شدة متوسطة'), findsOneWidget);
-        expect(find.text('شدة منخفضة'), findsOneWidget);
+        expect(find.byType(ReportStatusBadge), findsNWidgets(3));
+        expect(find.text('شدة المشكلة'), findsOneWidget);
+        expect(find.text('عالية'), findsOneWidget);
+        expect(find.text('منخفضة إلى متوسطة'), findsOneWidget);
+        expect(find.text('لم تُحلَّل بعد'), findsOneWidget);
         expect(find.byIcon(ReportMapMarker.severeIcon), findsNWidgets(2));
+        expect(find.byIcon(ReportMapMarker.normalIcon), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }

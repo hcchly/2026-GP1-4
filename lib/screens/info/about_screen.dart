@@ -1,7 +1,6 @@
 
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
 import '../../theme/khota_colors.dart';
 import '../../widgets/gradient_app_bar.dart';
 import '../../widgets/brand_surface.dart';
@@ -23,56 +22,12 @@ class AboutScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
         children: [
-          BrandSurface(
-            alignment: Alignment.center,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 22,
-              vertical: 18,
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 164),
-              child: SizedBox(
-                width: double.infinity,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ColorFiltered(
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.mint,
-                        BlendMode.srcIn,
-                      ),
-                      child: Image.asset(
-                        'assets/images/khota_mark_mist.png',
-                        width: 68,
-                        height: 48,
-                        fit: BoxFit.contain,
-                        excludeFromSemantics: true,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'خُطى',
-                      textAlign: TextAlign.center,
-                      style: text.displaySmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      'أرصفة أفضل تبدأ بخطوة',
-                      textAlign: TextAlign.center,
-                      style: text.titleMedium?.copyWith(
-                        color: AppColors.mist,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          const BrandIntro(
+            title: 'خُطى',
+            description: 'أرصفة أفضل تبدأ بخطوة',
+            icon: Icons.directions_walk_rounded,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           InfoCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,38 +42,6 @@ class AboutScreen extends StatelessWidget {
                 Text(
                   'خُطى يساعد سكان الرياض على الإبلاغ عن تضرّر الأرصفة '
                   'ومنحدراتها ومتابعة حالة بلاغاتهم.',
-                  style: bodyStyle,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          InfoCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const IconTile(
-                      icon: Icons.insights_outlined,
-                      size: 40,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'مؤشر حالة الرصيف',
-                        style: text.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'درجة تُحسب من البلاغات المكتملة في الموقع. '
-                  'الدرجة الأعلى تشير إلى حالة أفضل للرصيف. '
-                  'المؤشر تقديري، وليس ضمانًا هندسيًا للسلامة.',
                   style: bodyStyle,
                 ),
               ],
