@@ -14,32 +14,32 @@ class PhotoGuideScreen extends StatefulWidget {
     (
       'زاوية التصوير',
       'صوّر الرصيف من زاوية تُظهر الضرر كاملًا.',
-      'angle_good.png',
-      'angle_bad.png',
+      'angle_good.jpg',
+      'angle_bad.jpg',
       'زاوية واضحة تُظهر العيب.',
       'زاوية غير مناسبة تخفي العيب.',
     ),
     (
       'المسافة المناسبة',
       'صوّر من مسافة تُظهر المشكلة وتفاصيلها بوضوح.',
-      'distance_good.png',
-      'distance_bad.png',
+      'distance_good.jpg',
+      'distance_bad.jpg',
       'مسافة مناسبة تُظهر التفاصيل.',
       'الصورة بعيدة أو قريبة أكثر من اللازم.',
     ),
     (
       'الإضاءة والوضوح',
       'صوّر بإضاءة كافية وثبّت الهاتف لتظهر التفاصيل.',
-      'lighting_good.png',
-      'lighting_bad.png',
+      'lighting_good.jpg',
+      'lighting_bad.jpg',
       'إضاءة جيدة وتفاصيل واضحة.',
       'الإضاءة الضعيفة تخفي المشكلة.',
     ),
     (
       'إظهار المنطقة المحيطة',
       'أظهر المشكلة والرصيف المحيط بها لتوضيح موقع الضرر.',
-      'context_good.png',
-      'context_bad.png',
+      'context_good.jpg',
+      'context_bad.jpg',
       'المشكلة والمنطقة المحيطة واضحتان.',
       'الصورة لا تُظهر السياق المحيط بالمشكلة.',
     ),
@@ -355,30 +355,38 @@ class _ExampleCard extends StatelessWidget {
 
         const SizedBox(height: 8),
 
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Image.asset(
-              'assets/images/$imageName',
+        FractionallySizedBox(
+          widthFactor: 0.75,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Image.asset(
+                'assets/images/$imageName',
 
-              // Show the entire image without cropping.
-              fit: BoxFit.contain,
+                fit: BoxFit.cover,
+                alignment: switch (imageName) {
+                  'angle_good.jpg' => const Alignment(0, 0.55),
+                  'distance_good.jpg' => const Alignment(0, 0.30),
+                  'context_good.jpg' => const Alignment(0, 0.65),
+                  _ => Alignment.center,
+                },
 
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: context.khota.background,
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Text(
-                        'الصورة لم تُضف بعد',
-                        textAlign: TextAlign.center,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: context.khota.background,
+                    child: const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text(
+                          'الصورة لم تُضف بعد',
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),

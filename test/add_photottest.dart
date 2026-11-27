@@ -10,14 +10,14 @@ void main() {
 
   test('All eight photo guide images are available', () async {
     const images = [
-      'angle_good.png',
-      'angle_bad.png',
-      'distance_good.png',
-      'distance_bad.png',
-      'lighting_good.png',
-      'lighting_bad.png',
-      'context_good.png',
-      'context_bad.png',
+      'angle_good.jpg',
+      'angle_bad.jpg',
+      'distance_good.jpg',
+      'distance_bad.jpg',
+      'lighting_good.jpg',
+      'lighting_bad.jpg',
+      'context_good.jpg',
+      'context_bad.jpg',
     ];
 
     for (final image in images) {
