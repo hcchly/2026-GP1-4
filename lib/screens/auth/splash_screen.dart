@@ -111,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen>
       child: Scaffold(
         backgroundColor: context.khota.isDark
             ? context.khota.background
-            : AppColors.gradientTop,
+            : AppColors.mint,
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
